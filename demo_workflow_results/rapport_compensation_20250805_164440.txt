@@ -1,0 +1,56 @@
+RAPPORT DE COMPENSATION ALTIMÉTRIQUE - DÉMONSTRATION COMPLÈTE
+=================================================================
+
+Date: 05/08/2025 16:44:40
+Système: Compensation par Moindres Carrés
+
+DONNÉES DU PROJET
+--------------------
+Type de cheminement: Fermé
+Nombre de points: 5
+Nombre de tronçons: 4
+Distance totale: 1250 m
+Altitude de départ: 125.456 m
+Précision cible: 2.0 mm
+
+RÉSULTATS DES CALCULS PRÉLIMINAIRES
+-----------------------------------
+Erreur de fermeture brute: -0.3330 m
+Erreur de fermeture: -333.0 mm
+Tolérance théorique: ±2.2 mm
+
+RÉSULTATS DE LA COMPENSATION
+------------------------------
+Méthode: Répartition proportionnelle aux distances
+Écart-type unitaire (σ₀): 0.38 mm
+Correction maximale: 113.22 mm
+Correction minimale: 66.60 mm
+RMS des résidus: 0.33 mm
+
+DÉTAIL DES TRONÇONS
+--------------------
+Tronçon | Distance | Dénivelée | Correction | Alt.Compensée
+-------------------------------------------------------
+P001    |    250 m |  -0.333 m |     66.6 mm | 125.522600 m
+P002    |    300 m |   0.333 m |     79.9 mm | 125.269520 m
+P003    |    275 m |   0.333 m |     73.3 mm | 125.675780 m
+P004    |    425 m |  -0.666 m |    113.2 mm | 126.122000 m
+
+Fermeture finale: 125.456000 m
+Erreur résiduelle: 0.00 mm
+
+ÉVALUATION DE LA QUALITÉ
+-------------------------
+Qualité globale: EXCELLENTE
+Respect de la précision cible: >Oui
+
+FICHIERS GÉNÉRÉS
+---------------
+- profil_altimetrique_complet.png
+- corrections_compensation.png
+- analyse_qualite.png
+- Export CSV des résultats
+
+=================================================================
+Rapport généré par le Système de Compensation Altimétrique
+Version GUI - Démonstration complète

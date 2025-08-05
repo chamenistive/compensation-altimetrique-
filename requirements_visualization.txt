@@ -1,0 +1,25 @@
+# Dépendances pour le module de visualisation
+# Système de Compensation Altimétrique
+
+# Visualisation de base
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Traitement numérique (déjà inclus)
+numpy>=1.20.0
+pandas>=1.3.0
+
+# Optionnel - pour des graphiques interactifs avancés
+plotly>=5.0.0
+bokeh>=2.4.0
+
+# Optionnel - pour l'export PDF des rapports
+reportlab>=3.6.0
+weasyprint>=54.0
+
+# Optionnel - pour les cartes et géolocalisation
+folium>=0.12.0
+geopandas>=0.10.0
+
+# Interface graphique (optionnel)
+tkinter-matplotlib>=0.1.0

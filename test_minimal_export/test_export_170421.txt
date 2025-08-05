@@ -1,0 +1,7 @@
+TEST EXPORT UBUNTU
+==================
+
+Date: 2025-08-05 17:04:21.616349
+Status: Application fonctionnelle sur Ubuntu!
+
+Toutes les fonctions de base sont opérationnelles.

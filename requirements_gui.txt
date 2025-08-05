@@ -1,0 +1,18 @@
+# Dépendances pour l'interface graphique
+# Système de Compensation Altimétrique - Application Desktop
+
+# Interface graphique principale
+customtkinter>=5.2.0
+
+# Gestion des images et icônes
+Pillow>=9.0.0
+
+# Dépendances existantes (backend)
+numpy>=1.20.0
+pandas>=1.3.0
+openpyxl>=3.0.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Pour l'exécutable final (optionnel)
+pyinstaller>=5.0.0

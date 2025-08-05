@@ -1,0 +1,84 @@
+
+============================================================
+    RAPPORT DE CALCULS - NIVELLEMENT GÉOMÉTRIQUE
+============================================================
+
+🎯 OBJECTIF DE PRÉCISION: 2.0 mm
+
+📊 STATISTIQUES GÉNÉRALES:
+   Points: 90
+   Observations: 176
+   Colonnes AR: AR 1, AR 2
+   Colonnes AV: AV 1, AV 2
+
+📐 DÉNIVELÉES CALCULÉES:
+   Valides: 176
+   Invalides: 0
+   
+📏 ALTITUDES:
+   Référence: 518.519 m
+   Finale: 504.122 m
+   Dénivelée totale: -14.396 m
+
+
+=== ANALYSE DE FERMETURE ===
+🎯 Type de cheminement: ouvert
+📏 Distance totale: 3.792 km
+
+📊 Erreur de fermeture:
+   Valeur: 1250.00 mm
+   Tolérance: ±7.79 mm
+   Ratio: 160.47
+
+✅ Statut: DÉPASSEMENT
+🎯 Objectif 2mm: DÉPASSÉ
+
+
+🔧 CONTRÔLE QUALITÉ:
+   Statut: WARNING
+   Résidu max: 19.63 mm
+   Points > 5mm: 46
+
+✅ VALIDATION FINALE:
+   Fermeture: ❌ PROBLÈME
+   Précision 2mm: ❌ DÉPASSÉE
+   
+Rapport généré le: 2025-08-04 12:35:52.271241
+============================================================
+
+
+
+======================================================================
+    RAPPORT DE COMPENSATION - MOINDRES CARRÉS
+======================================================================
+
+🎯 OBJECTIF PRÉCISION: 2.0 mm
+
+📊 SYSTÈME MATRICIEL:
+   Taille: 176x89
+   Méthode: decomposition_qr
+   Conditionnement: inf
+   Correction max: 7724.76 mm
+
+📈 STATISTIQUES QUALITÉ:
+   σ₀ (a posteriori): 0.2518
+   Degrés liberté: 87
+   Test χ² (poids): 5.51 / 109.77
+   Statut χ²: ✅ VALIDÉ
+
+🔍 DÉTECTION FAUTES:
+   Résidu normalisé max: 4.42
+   Seuil détection: 1.99
+   Observations suspectes: 12
+
+✅ ALTITUDES COMPENSÉES:
+   Référence: 518.5190 m
+   Finale: 504.1220 m
+   Points traités: 90
+
+⏱️ MÉTADONNÉES:
+   Timestamp: 2025-08-04 12:35:56.590136
+   Erreur instrumentale: 1.0 mm
+   Erreur kilométrique: 1.0 mm/km
+
+======================================================================
