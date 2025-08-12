@@ -1,4 +1,0 @@
-RAPPORT DE TEST
-=============
-
-Test de génération de rapport réussi\!
