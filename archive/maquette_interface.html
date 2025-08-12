@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maquette - Compensation Altimétrique</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
+            overflow-x: auto;
+        }
+
+        .app-container {
+            width: 1200px;
+            height: 800px;
+            background: white;
+            margin: 20px auto;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Barre de titre */
+        .title-bar {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px 6px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .close { background: #ff5f57; }
+        .minimize { background: #ffbd2e; }
+        .maximize { background: #28ca42; }
+
+        /* Menu */
+        .menu-bar {
+            background: #ecf0f1;
+            padding: 8px 0;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .menu-item {
+            display: inline-block;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .menu-item:hover {
+            background: #d5dbdb;
+        }
+
+        /* Conteneur principal */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Onglets */
+        .tabs-container {
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+        }
+
+        .tabs {
+            display: flex;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: #bdc3c7;
+            border: none;
+            cursor: pointer;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            margin-right: 2px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: white;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .tab:hover:not(.active) {
+            background: #d5dbdb;
+        }
+
+        .tab.disabled {
+            background: #ecf0f1;
+            color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Contenu des onglets */
+        .tab-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Sections avec cadres */
+        .section {
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            background: white;
+        }
+
+        .section-header {
+            background: #ecf0f1;
+            padding: 10px 15px;
+            border-bottom: 1px solid #bdc3c7;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .section-content {
+            padding: 15px;
+        }
+
+        /* Boutons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 15px 30px;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        /* Champs de saisie */
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group label {
+            min-width: 200px;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 150px;
+        }
+
+        /* Tableaux */
+        .table-container {
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Zone de texte */
+        .text-area {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+            resize: vertical;
+        }
+
+        /* Barre de progression */
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.5s;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Barre de statut */
+        .status-bar {
+            background: #ecf0f1;
+            padding: 8px 20px;
+            border-top: 1px solid #bdc3c7;
+            font-size: 12px;
+            color: #2c3e50;
+        }
+
+        /* Indicateurs de validation */
+        .validation-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .validation-success {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .validation-error {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        /* Styles spécifiques aux onglets */
+        .file-selection {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .file-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .precision-info {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .precision-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+
+        .calculation-center {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1250px) {
+            .app-container {
+                width: 95%;
+                margin: 10px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barre de titre -->
+        <div class="title-bar">
+            <div class="title">🧮 Dickpy </div>
+            <div class="window-controls">
+                <div class="control-btn minimize"></div>
+                <div class="control-btn maximize"></div>
+                <div class="control-btn close"></div>
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <div class="menu-bar">
+            <span class="menu-item">Fichier</span>
+            <span class="menu-item">Calculs</span>
+            <span class="menu-item">Export</span>
+            <span class="menu-item">Aide</span>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="main-content">
+            <!-- Onglets -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab(0)">1. Import Données</button>
+                    <button class="tab" onclick="showTab(1)">2. Paramètres</button>
+                    <button class="tab disabled" onclick="showTab(2)">3. Calculs</button>
+                    <button class="tab disabled" onclick="showTab(3)">4. Résultats</button>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 1: Import -->
+            <div class="tab-content active" id="tab-0">
+                <div class="section">
+                    <div class="section-header">📁 Importation fichier Excel</div>
+                    <div class="section-content">
+                        <div class="file-selection">
+                            <button class="btn btn-primary">Sélectionner fichier Excel</button>
+                            <div class="file-info">Aucun fichier sélectionné</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">👁️ Aperçu des données</div>
+                    <div class="section-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>AR1</th>
+                                        <th>AV1</th>
+                                        <th>DIST</th>
+                                        <th>AR2</th>
+                                        <th>AV2</th>
+                                        <th>DIST2</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>PT001</td>
+                                        <td>1.234</td>
+                                        <td>1.657</td>
+                                        <td>150.5</td>
+                                        <td>2.183</td>
+                                        <td>2.956</td>
+                                        <td>150.5</td>
+                                    </tr>
+                                    <tr>
+                                        <td>PT002</td>
+                                        <td>1.789</td>
+                                        <td>1.456</td>
+                                        <td>175.2</td>
+                                        <td>2.234</td>
+                                        <td>2.567</td>
+                                        <td>175.2</td>
+                                    </tr>
+                                    <tr>
+                                        <td>PT003</td>
+                                        <td>2.345</td>
+                                        <td>1.987</td>
+                                        <td>200.8</td>
+                                        <td>2.678</td>
+                                        <td>2.123</td>
+                                        <td>200.8</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">✅ Validation des données</div>
+                    <div class="section-content">
+                        <textarea class="text-area" readonly>✓ Toutes les colonnes requises sont présentes
+✓ Données numériques valides détectées
+✓ 15 points de mesure importés
+✓ Prêt pour les calculs</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 2: Paramètres -->
+            <div class="tab-content" id="tab-1">
+                <div class="section">
+                    <div class="section-header">📐 Altitudes de référence</div>
+                    <div class="section-content">
+                        <div class="input-group">
+                            <label>Altitude de référence (m):</label>
+                            <input type="number" value="125.456" step="0.001">
+                        </div>
+                        <div class="input-group">
+                            <label>Altitude du dernier point (m):</label>
+                            <input type="number" value="127.123" step="0.001">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">🎯 Paramètres de précision</div>
+                    <div class="section-content">
+                        <div class="precision-info">
+                            <div>Précision de calcul</div>
+                            <div class="precision-value">2 millimètres</div>
+                            <div>Tous les calculs sont arrondis à 2 millimètres près</div>
+                            <div style="margin-top: 15px;">
+                                <span class="validation-indicator validation-success">✓ Précision garantie</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 3: Calculs -->
+            <div class="tab-content" id="tab-2">
+                <div class="section">
+                    <div class="section-header">🚀 Lancement des calculs</div>
+                    <div class="section-content">
+                        <div class="calculation-center">
+                            <button class="btn btn-success">LANCER LES CALCULS</button>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">📊 État des calculs</div>
+                    <div class="section-content">
+                        <textarea class="text-area" readonly>Début des calculs...
+Calcul des deltas... ✓
+Calcul des contrôles... ✓
+Calcul des altitudes compensées... ✓
+Calcul de fermeture: 0.003 m (Fermeture sur même point)... ✓
+
+Calculs terminés avec succès!
+Précision respectée: 2mm
+Fermeture acceptable: 3mm < 10mm</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 4: Résultats -->
+            <div class="tab-content" id="tab-3">
+                <div class="section">
+                    <div class="section-header">📋 Résultats détaillés</div>
+                    <div class="section-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>Delta1 (m)</th>
+                                        <th>Delta2 (m)</th>
+                                        <th>Contrôle (m)</th>
+                                        <th>Valide</th>
+                                        <th>Altitude (m)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>PT001</td>
+                                        <td>-0.333</td>
+                                        <td>-0.333</td>
+                                        <td>0.000</td>
+                                        <td style="color: green;">✓</td>
+                                        <td>125.456</td>
+                                    </tr>
+                                    <tr>
+                                        <td>PT002</td>
+                                        <td>0.333</td>
+                                        <td>-0.333</td>
+                                        <td>0.666</td>
+                                        <td style="color: green;">✓</td>
+                                        <td>125.789</td>
+                                    </tr>
+                                    <tr>
+                                        <td>PT003</td>
+                                        <td>0.358</td>
+                                        <td>0.555</td>
+                                        <td>0.197</td>
+                                        <td style="color: green;">✓</td>
+                                        <td>126.147</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">🎯 Calcul de fermeture</div>
+                    <div class="section-content">
+                        <textarea class="text-area" readonly>Calcul de Fermeture:
+Type: Fermeture sur même point
+Fermeture: 0.003 m
+Précision: ✓ Acceptable (seuil: 10mm)
+
+Écart linéaire: 3mm
+Tolérance: ±10mm
+Statut: VALIDÉ</textarea>
+                    </div>
+                </div>
+
+                <div class="export-buttons">
+                    <button class="btn btn-primary">📊 Exporter Excel</button>
+                    <button class="btn btn-secondary">📄 Exporter PDF</button>
+                    <button class="btn btn-secondary">💾 Sauvegarder Projet</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barre de statut -->
+        <div class="status-bar">
+            Prêt | Données: 15 points | Dernier calcul: 26/06/2025 14:23 | Précision: 2mm
+        </div>
+    </div>
+
+    <script>
+        function showTab(index) {
+            // Masquer tous les contenus
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activer l'onglet et contenu sélectionnés
+            document.getElementById(`tab-${index}`).classList.add('active');
+            document.querySelectorAll('.tab')[index].classList.add('active');
+            
+            // Simuler l'activation des onglets suivants après calculs
+            if (index >= 2) {
+                document.querySelectorAll('.tab').forEach((tab, i) => {
+                    if (i <= index) {
+                        tab.classList.remove('disabled');
+                    }
+                });
+            }
+        }
+
+        // Animation de la barre de progression
+        setInterval(() => {
+            const progressFill = document.querySelector('.progress-fill');
+            if (progressFill) {
+                let currentWidth = parseInt(progressFill.style.width) || 0;
+                if (currentWidth < 100) {
+                    progressFill.style.width = (currentWidth + 1) + '%';
+                } else {
+                    progressFill.style.width = '0%';
+                }
+            }
+        }, 100);
+
+        // Simuler l'activation des onglets
+        setTimeout(() => {
+            document.querySelectorAll('.tab')[1].classList.remove('disabled');
+        }, 2000);
+
+        setTimeout(() => {
+            document.querySelectorAll('.tab')[2].classList.remove('disabled');
+        }, 4000);
+
+        setTimeout(() => {
+            document.querySelectorAll('.tab')[3].classList.remove('disabled');
+        }, 6000);
+    </script>
+</body>
+</html>
