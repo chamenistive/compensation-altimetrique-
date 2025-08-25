@@ -30,25 +30,11 @@ from exceptions import (
     CalculationError, PrecisionError, validate_positive_number,
     safe_divide, validate_distance_km
 )
-from validators import GeodeticValidator, PrecisionValidator
+from validators import GeodeticValidator, PrecisionValidator, CalculationValidator
 from atmospheric_corrections import (
     AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
 )
-from atmospheric_corrections import (
-    AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
-)
-from atmospheric_corrections import (
-    AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
-)
-from atmospheric_corrections import (
-    AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
-)
-from atmospheric_corrections import (
-    AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
-)
-from atmospheric_corrections import (
-    AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
-)
+from data_importer import DataImporter
 
 
 class TraverseType(Enum):
@@ -116,21 +102,23 @@ class HeightDifferenceCalculator:
                                    ar_columns: List[str], 
                                    av_columns: List[str]) -> List[HeightDifference]:
         """
-        Calcul des dénivelées pour toutes les observations.
+        Calcul des dénivelées selon la logique correcte du nivellement géométrique.
         
-        Algorithme:
-        1. Pour chaque paire AR/AV: Δh = AR - AV
-        2. Validation des lectures (plage réaliste)
-        3. Calcul du contrôle si plusieurs instruments
+        Algorithme corrigé:
+        1. Le premier point est le point de référence (pas de dénivelée calculée)
+        2. À partir du point 2: Δh(i) = AR(i-1) - AV(i) 
+        3. Moyenne des instruments: Δh_moy = (Δh₁ + Δh₂) / 2
+        4. Validation et contrôle des résidus
         
         Args:
             df: DataFrame avec les observations
-            ar_columns: Colonnes des lectures arrière
-            av_columns: Colonnes des lectures avant
+            ar_columns: Colonnes des lectures arrière (exactement 2)
+            av_columns: Colonnes des lectures avant (exactement 2)
             
         Returns:
-            List[HeightDifference]: Dénivelées calculées
+            List[HeightDifference]: Dénivelées calculées (N-1 pour N points)
         """
+        # Validation stricte: exactement 2 instruments
         if len(ar_columns) != len(av_columns):
             raise CalculationError(
                 "Nombre incohérent de colonnes AR et AV",
@@ -138,21 +126,41 @@ class HeightDifferenceCalculator:
                 input_values={'ar_count': len(ar_columns), 'av_count': len(av_columns)}
             )
         
+        if len(ar_columns) != 2:
+            raise CalculationError(
+                f"L'approche stricte requiert exactement 2 instruments, {len(ar_columns)} détectés",
+                calculation_type="height_differences",
+                input_values={'instrument_count': len(ar_columns)}
+            )
+        
+        if len(df) < 2:
+            raise CalculationError(
+                "Au moins 2 points sont nécessaires pour calculer des dénivelées",
+                calculation_type="height_differences"
+            )
+        
         height_differences = []
         
-        for index, row in df.iterrows():
+        # Commencer à partir de la ligne 1 (index 1) - le point 2
+        for current_idx in range(1, len(df)):
+            previous_row = df.iloc[current_idx - 1]
+            current_row = df.iloc[current_idx]
+            
+            deltas_for_average = []
             row_deltas = []
             
-            # Calcul pour chaque instrument
+            # Calcul pour chaque instrument: AR(précédent) - AV(actuel)
             for inst_id, (ar_col, av_col) in enumerate(zip(ar_columns, av_columns), 1):
-                ar_reading = pd.to_numeric(row[ar_col], errors='coerce')
-                av_reading = pd.to_numeric(row[av_col], errors='coerce')
+                # Lecture AR du point précédent
+                ar_reading = pd.to_numeric(previous_row[ar_col], errors='coerce')
+                # Lecture AV du point actuel
+                av_reading = pd.to_numeric(current_row[av_col], errors='coerce')
                 
                 if pd.notna(ar_reading) and pd.notna(av_reading):
                     # Validation des lectures
-                    self._validate_readings(ar_reading, av_reading, index)
+                    self._validate_readings(ar_reading, av_reading, current_idx)
                     
-                    # Calcul de la dénivelée
+                    # Calcul de la dénivelée: AR(précédent) - AV(actuel)
                     delta_h = ar_reading - av_reading
                     
                     height_diff = HeightDifference(
@@ -164,77 +172,85 @@ class HeightDifferenceCalculator:
                     )
                     
                     row_deltas.append(height_diff)
-                    height_differences.append(height_diff)
+                    deltas_for_average.append(delta_h)
             
-            # Calcul du contrôle si plusieurs instruments
-            if len(row_deltas) > 1:
-                self._calculate_control_residuals(row_deltas, index)
+            # Calcul de la dénivelée moyenne (Δh₁ + Δh₂) / 2
+            if deltas_for_average:
+                mean_delta_h = sum(deltas_for_average) / len(deltas_for_average)
+                
+                # Créer la dénivelée moyenne finale
+                mean_height_diff = HeightDifference(
+                    delta_h_m=mean_delta_h,
+                    ar_reading=sum(hd.ar_reading for hd in row_deltas) / len(row_deltas),
+                    av_reading=sum(hd.av_reading for hd in row_deltas) / len(row_deltas),
+                    instrument_id=0,  # 0 = moyenne
+                    is_valid=True
+                )
+                
+                height_differences.append(mean_height_diff)
+                
+                # Calcul du contrôle des résidus si plusieurs instruments
+                if len(row_deltas) > 1:
+                    self._calculate_control_residuals(row_deltas, current_idx)
+            else:
+                raise CalculationError(
+                    f"Aucune lecture valide pour calculer la dénivelée au point {current_idx}",
+                    calculation_type="height_differences"
+                )
         
         return height_differences
     
     def _validate_readings(self, ar: float, av: float, row_index: int):
-        """Validation des lectures AR et AV pour données réelles."""
-        # Plage élargie pour données réelles (terrain peut avoir de grosses dénivelées)
-        min_reading, max_reading = -50.0, 50.0
+        """Validation des lectures AR et AV - délègue au CalculationValidator."""
+        validator = CalculationValidator(self.precision_mm)
+        warnings = validator.validate_readings(ar, av, row_index)
         
-        # Validation moins stricte - juste avertissements
-        if not (min_reading <= ar <= max_reading):
-            print(f"⚠️ Lecture AR inhabituelle à la ligne {row_index}: {ar:.3f}m")
-        
-        if not (min_reading <= av <= max_reading):
-            print(f"⚠️ Lecture AV inhabituelle à la ligne {row_index}: {av:.3f}m")
-        
-        # Validation critique seulement pour valeurs extrêmes
-        if abs(ar) > 100 or abs(av) > 100:
-            raise CalculationError(
-                f"Lecture critique à la ligne {row_index}: AR={ar}, AV={av}",
-                calculation_type="reading_validation",
-                input_values={'ar_reading': ar, 'av_reading': av, 'row': row_index}
-            )
+        # Afficher les avertissements
+        for warning in warnings:
+            print(f"⚠️ {warning}")
     
     def _calculate_control_residuals(self, row_deltas: List[HeightDifference], row_index: int):
-        """Calcul des résidus de contrôle entre instruments - version robuste."""
-        if len(row_deltas) < 2:
+        """Calcul des résidus de contrôle entre exactement 2 instruments - approche stricte."""
+        if len(row_deltas) != 2:
+            print(f"⚠️ Ligne {row_index}: {len(row_deltas)} instruments détectés (2 requis)")
             return
         
-        # Résidu = différence entre les dénivelées des différents instruments
-        delta_values = [hd.delta_h_m for hd in row_deltas]
-        mean_delta = np.mean(delta_values)
+        # Contrôle stricte avec exactement 2 instruments
+        delta_1 = row_deltas[0].delta_h_m
+        delta_2 = row_deltas[1].delta_h_m
         
-        for i, height_diff in enumerate(row_deltas):
-            residual = height_diff.delta_h_m - mean_delta
-            height_diff.control_residual = residual
-            
-            # Tolérance progressive selon la distance et conditions
-            # Données réelles peuvent avoir plus d'écart
-            tolerance_mm = max(10.0, 0.005 * 1000)  # 10mm minimum ou 5mm/km
-            
-            if abs(residual * 1000) > tolerance_mm:
-                print(f"⚠️ Contrôle ligne {row_index}: résidu {residual*1000:.1f}mm > {tolerance_mm:.1f}mm")
-                # Ne pas invalider automatiquement - garder comme avertissement
-                # height_diff.is_valid = False
+        # Calcul de la moyenne: (Δh₁ + Δh₂) / 2
+        mean_delta = (delta_1 + delta_2) / 2.0
+        
+        # Calcul des résidus pour chaque instrument
+        residual_1 = delta_1 - mean_delta
+        residual_2 = delta_2 - mean_delta
+        
+        row_deltas[0].control_residual = residual_1
+        row_deltas[1].control_residual = residual_2
+        
+        # Tolérance stricte pour contrôle de qualité
+        tolerance_mm = 5.0  # 5mm maximum entre les 2 instruments
+        
+        # Le contrôle est la différence entre les 2 dénivelées
+        control_diff = abs(delta_1 - delta_2) * 1000  # en mm
+        
+        if control_diff > tolerance_mm:
+            print(f"⚠️ Contrôle ligne {row_index}: |Δh₁ - Δh₂| = {control_diff:.1f}mm > {tolerance_mm:.1f}mm")
+            print(f"   Δh₁ = {delta_1*1000:.1f}mm, Δh₂ = {delta_2*1000:.1f}mm")
+            # Avertissement seulement, pas d'invalidation automatique
     
     def get_mean_height_differences(self, height_differences: List[HeightDifference]) -> pd.Series:
-        """Calcul des dénivelées moyennes par point."""
-        # Grouper par index de ligne (implicite dans l'ordre)
-        df_deltas = pd.DataFrame([
-            {
-                'delta_h': hd.delta_h_m,
-                'instrument': hd.instrument_id,
-                'valid': hd.is_valid
-            }
-            for hd in height_differences
-        ])
-        
-        # Moyenner les dénivelées valides pour chaque point
+        """Calcul des dénivelées moyennes par point avec exactement 2 instruments: (Δh₁ + Δh₂) / 2."""
+        # Grouper les observations par point (par paires de 2 instruments)
         mean_deltas = []
         current_group = []
         
         for hd in height_differences:
             if hd.instrument_id == 1:  # Nouveau point
                 if current_group:
-                    valid_deltas = [h.delta_h_m for h in current_group if h.is_valid]
-                    mean_delta = np.mean(valid_deltas) if valid_deltas else np.nan
+                    # Traiter le groupe précédent
+                    mean_delta = self._calculate_strict_mean(current_group)
                     mean_deltas.append(mean_delta)
                 current_group = [hd]
             else:
@@ -242,11 +258,30 @@ class HeightDifferenceCalculator:
         
         # Traiter le dernier groupe
         if current_group:
-            valid_deltas = [h.delta_h_m for h in current_group if h.is_valid]
-            mean_delta = np.mean(valid_deltas) if valid_deltas else np.nan
+            mean_delta = self._calculate_strict_mean(current_group)
             mean_deltas.append(mean_delta)
         
         return pd.Series(mean_deltas)
+    
+    def _calculate_strict_mean(self, group: List[HeightDifference]) -> float:
+        """Calcul de la moyenne stricte avec exactement 2 instruments."""
+        valid_deltas = [h.delta_h_m for h in group if h.is_valid]
+        
+        if len(valid_deltas) == 2:
+            # Cas idéal: exactement 2 instruments valides
+            return (valid_deltas[0] + valid_deltas[1]) / 2.0
+        elif len(valid_deltas) == 1:
+            # Un seul instrument valide
+            print(f"⚠️ Un seul instrument valide pour ce point: {valid_deltas[0]:.3f}m")
+            return valid_deltas[0]
+        elif len(valid_deltas) == 0:
+            # Aucun instrument valide
+            print(f"❌ Aucun instrument valide pour ce point")
+            return np.nan
+        else:
+            # Plus de 2 instruments (ne devrait pas arriver avec l'approche stricte)
+            print(f"⚠️ {len(valid_deltas)} instruments valides (2 attendus)")
+            return np.mean(valid_deltas)
 
 
 class AltitudeCalculator:
@@ -262,68 +297,71 @@ class AltitudeCalculator:
         self.precision_m = precision_mm / 1000.0
     
     def calculate_altitudes(self, initial_altitude: float, 
-                          delta_h_series: pd.Series,
+                          height_differences: List[HeightDifference],
                           point_ids: pd.Series) -> List[AltitudeCalculation]:
         """
-        Calcul vectorisé des altitudes.
+        Calcul des altitudes avec la logique corrigée.
         
-        Algorithme optimisé:
-        H₀ = altitude de référence
-        Hᵢ = H₀ + Σ(Δhⱼ) pour j=1 à i
+        Algorithme adapté:
+        - Point 1: Altitude de référence (initial_altitude)
+        - Point i (i≥2): H_i = H_{i-1} + Δh_{i-1→i}
         
         Args:
-            initial_altitude: Altitude du point de référence
-            delta_h_series: Série des dénivelées
-            point_ids: Identifiants des points
+            initial_altitude: Altitude du point de référence (point 1)
+            height_differences: Liste des dénivelées moyennes calculées (N-1 dénivelées)
+            point_ids: Identifiants des points (N points)
             
         Returns:
-            List[AltitudeCalculation]: Altitudes calculées
+            List[AltitudeCalculation]: Altitudes calculées pour tous les points
         """
         validate_positive_number(initial_altitude, "altitude_initiale", allow_zero=True)
         
-        # Nettoyage des dénivelées (remplacer NaN par 0)
-        delta_h_clean = delta_h_series.fillna(0)
+        if len(point_ids) != len(height_differences) + 1:
+            raise CalculationError(
+                f"Nombre incohérent: {len(point_ids)} points pour {len(height_differences)} dénivelées "
+                f"(attendu: N points pour N-1 dénivelées)",
+                calculation_type="altitude_calculation"
+            )
         
-        # Calcul vectorisé avec cumsum
-        cumulative_deltas = np.concatenate([[0], np.cumsum(delta_h_clean)])
-        altitudes = initial_altitude + cumulative_deltas
-        
-        # Construction de la liste des résultats
         altitude_calculations = []
+        current_altitude = initial_altitude
+        cumulative_delta_h = 0.0
         
-        for i, (point_id, altitude) in enumerate(zip(point_ids, altitudes)):
+        # Premier point: Point de référence
+        calc = AltitudeCalculation(
+            point_id=str(point_ids.iloc[0]),
+            altitude_m=round(initial_altitude, 3),
+            cumulative_delta_h=0.0,
+            is_reference=True
+        )
+        altitude_calculations.append(calc)
+        
+        # Points suivants: Propagation avec les dénivelées
+        for i, height_diff in enumerate(height_differences):
+            current_altitude += height_diff.delta_h_m
+            cumulative_delta_h += height_diff.delta_h_m
+            
             calc = AltitudeCalculation(
-                point_id=str(point_id),
-                altitude_m=round(altitude, 3),  # Arrondi à 1mm
-                cumulative_delta_h=round(cumulative_deltas[i], 3),
-                is_reference=(i == 0)
+                point_id=str(point_ids.iloc[i + 1]),  # i+1 car on a commencé par le point 0
+                altitude_m=round(current_altitude, 3),
+                cumulative_delta_h=round(cumulative_delta_h, 3),
+                is_reference=False
             )
             altitude_calculations.append(calc)
         
         return altitude_calculations
     
     def validate_altitude_consistency(self, altitudes: List[AltitudeCalculation]) -> Dict:
-        """Validation de la cohérence des altitudes calculées."""
+        """Validation de la cohérence des altitudes - délègue au CalculationValidator."""
         altitude_values = [alt.altitude_m for alt in altitudes]
+        validator = CalculationValidator(self.precision_mm)
+        statistics = validator.validate_altitude_consistency(altitude_values)
         
-        statistics = {
-            'min_altitude': min(altitude_values),
-            'max_altitude': max(altitude_values),
-            'altitude_range': max(altitude_values) - min(altitude_values),
+        # Ajouter les statistiques spécifiques au context LevelingCalculator
+        statistics.update({
             'total_elevation_change': altitudes[-1].cumulative_delta_h,
-            'reference_altitude': altitudes[0].altitude_m
-        }
+        })
         
-        # Validations
-        warnings = []
-        
-        if statistics['altitude_range'] > 1000:  # Plus de 1000m de dénivelée
-            warnings.append(f"Dénivelée importante: {statistics['altitude_range']:.1f}m")
-        
-        if any(alt < -500 or alt > 5000 for alt in altitude_values):  # Altitudes irréalistes
-            warnings.append("Altitudes hors plage normale (-500m à 5000m)")
-        
-        statistics['warnings'] = warnings
         return statistics
 
 
@@ -502,8 +540,8 @@ class LevelingCalculator:
     """
     
     def __init__(self, precision_mm: float = 2.0,
-                 instrumental_error_mm: float = 1.0,
-                 kilometric_error_mm: float = 1.0,
+                 instrumental_error_mm: float = 0.2,
+                 kilometric_error_mm: float = 0.3,
                  apply_atmospheric_corrections: bool = True,
                  atmospheric_conditions: AtmosphericConditions = None):
         """
@@ -604,9 +642,9 @@ class LevelingCalculator:
                 mean_deltas = self.height_diff_calc.get_mean_height_differences(height_differences)
                 print("🔧 Corrections atmosphériques désactivées")
             
-            # 2. Calcul des altitudes
+            # 2. Calcul des altitudes avec la nouvelle logique
             altitudes = self.altitude_calc.calculate_altitudes(
-                initial_altitude, mean_deltas, df['Matricule']
+                initial_altitude, height_differences, df['Matricule']
             )
             
             # 3. Calcul de la distance totale
@@ -745,55 +783,5 @@ Rapport généré le: {results.calculation_metadata['calculation_timestamp']}
         return pd.DataFrame(data)
 
 
-# Fonctions utilitaires
-def quick_leveling_calculation(df: pd.DataFrame, 
-                             initial_altitude: float,
-                             precision_mm: float = 2.0) -> CalculationResults:
-    """Calcul rapide avec détection automatique des colonnes."""
-    from data_importer import DataImporter
-    
-    # Import et validation automatique
-    importer = DataImporter()
-    importer.validator = DataImporter().validator
-    validation_result = importer.validator.validate_dataframe(df)
-    
-    if not validation_result.is_valid:
-        raise CalculationError(
-            f"Données invalides: {'; '.join(validation_result.errors)}",
-            calculation_type="quick_calculation"
-        )
-    
-    # Extraction des colonnes
-    ar_columns = validation_result.details.get('ar_columns', [])
-    av_columns = validation_result.details.get('av_columns', [])
-    dist_columns = validation_result.details.get('dist_columns', [])
-    
-    # Calcul
-    calculator = LevelingCalculator(precision_mm)
-    return calculator.calculate_complete_leveling(
-        df, ar_columns, av_columns, dist_columns, initial_altitude
-    )
 
 
-def validate_calculation_inputs(df: pd.DataFrame, 
-                              ar_columns: List[str],
-                              av_columns: List[str],
-                              initial_altitude: float) -> bool:
-    """Validation rapide des entrées de calcul."""
-    try:
-        # Vérifications de base
-        if df.empty:
-            return False
-        
-        if len(ar_columns) != len(av_columns):
-            return False
-        
-        if not all(col in df.columns for col in ar_columns + av_columns):
-            return False
-        
-        validate_positive_number(initial_altitude, "altitude_initiale", allow_zero=True)
-        
-        return True
-        
-    except:
-        return False

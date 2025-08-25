@@ -240,7 +240,3 @@ def safe_divide(numerator: float, denominator: float, operation_name: str = "div
             f"Erreur de calcul dans {operation_name}: {str(e)}",
             calculation_type=operation_name
         )
-
-
-# Import nécessaire
-import numpy as np

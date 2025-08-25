@@ -717,22 +717,6 @@ Objectif atteint: {'OUI' if percentage_ok >= 90 else 'NON'}
         self.created_plots.clear()
 
 
-# Fonctions utilitaires
-def quick_visualization(calculation_results: CalculationResults,
-                       compensation_results: Optional[CompensationResults] = None,
-                       output_dir: Optional[Path] = None) -> Path:
-    """Visualisation rapide avec paramètres par défaut."""
-    # S'assurer que output_dir est un Path et existe
-    if output_dir is None:
-        output_dir = Path("./quick_visualizations")
-    else:
-        output_dir = Path(output_dir)
-    
-    # Créer le dossier s'il n'existe pas
-    output_dir.mkdir(exist_ok=True, parents=True)
-    
-    visualizer = LevelingVisualizer(precision_mm=2.0, output_dir=output_dir)
-    return visualizer.create_complete_report(calculation_results, compensation_results)
 
 
 def create_comparison_plot(results_before: CalculationResults,

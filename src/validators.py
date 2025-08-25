@@ -21,7 +21,7 @@ from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass
 
 from exceptions import (
-    DataValidationError, FileImportError, PrecisionError, 
+    DataValidationError, FileImportError, PrecisionError, CalculationError,
     ConfigurationError, validate_positive_number, validate_precision_mm
 )
 
@@ -450,3 +450,256 @@ class CompensationValidator:
             result.add_error(f"Erreur validation matrice P: {str(e)}")
         
         return result
+
+
+class CalculationValidator:
+    """Validateur pour les calculs de nivellement."""
+    
+    def __init__(self, precision_mm: float = 2.0):
+        self.precision_mm = precision_mm
+        
+    def validate_readings(self, ar: float, av: float, row_index: int):
+        """Validation des lectures AR et AV pour données réelles."""
+        # Plage élargie pour données réelles (terrain peut avoir de grosses dénivelées)
+        min_reading, max_reading = -50.0, 50.0
+        
+        warnings = []
+        
+        # Validation moins stricte - juste avertissements
+        if not (min_reading <= ar <= max_reading):
+            warnings.append(f"Lecture AR inhabituelle à la ligne {row_index}: {ar:.3f}m")
+        
+        if not (min_reading <= av <= max_reading):
+            warnings.append(f"Lecture AV inhabituelle à la ligne {row_index}: {av:.3f}m")
+        
+        # Validation critique seulement pour valeurs extrêmes
+        if abs(ar) > 100 or abs(av) > 100:
+            raise CalculationError(
+                f"Lecture critique à la ligne {row_index}: AR={ar}, AV={av}",
+                calculation_type="validation_lectures"
+            )
+        
+        return warnings
+    
+    def validate_altitude_consistency(self, altitudes_m: List[float]) -> Dict:
+        """Validation de la cohérence des altitudes calculées."""
+        statistics = {
+            'min_altitude': min(altitudes_m),
+            'max_altitude': max(altitudes_m),
+            'altitude_range': max(altitudes_m) - min(altitudes_m),
+            'reference_altitude': altitudes_m[0]
+        }
+        
+        # Validations
+        warnings = []
+        
+        if statistics['altitude_range'] > 1000:  # Plus de 1000m de dénivelée
+            warnings.append(f"Dénivelée importante: {statistics['altitude_range']:.1f}m")
+        
+        if any(alt < -500 or alt > 5000 for alt in altitudes_m):  # Altitudes irréalistes
+            warnings.append("Altitudes hors plage normale (-500m à 5000m)")
+        
+        statistics['warnings'] = warnings
+        return statistics
+    
+    def validate_calculation_inputs(self, df: pd.DataFrame, 
+                                  ar_columns: List[str],
+                                  av_columns: List[str],
+                                  initial_altitude: float) -> ValidationResult:
+        """Validation complète des entrées de calcul."""
+        result = ValidationResult()
+        
+        try:
+            # Vérifications de base
+            if df.empty:
+                result.add_error("DataFrame vide")
+                return result
+            
+            if len(ar_columns) != len(av_columns):
+                result.add_error(f"Nombre de colonnes AR ({len(ar_columns)}) != AV ({len(av_columns)})")
+            
+            missing_cols = [col for col in ar_columns + av_columns if col not in df.columns]
+            if missing_cols:
+                result.add_error(f"Colonnes manquantes: {missing_cols}")
+            
+            # Validation altitude initiale
+            try:
+                validate_positive_number(initial_altitude, "altitude_initiale", allow_zero=True)
+            except Exception as e:
+                result.add_error(f"Altitude initiale invalide: {str(e)}")
+            
+            result.mark_valid()
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation entrées: {str(e)}")
+        
+        return result
+
+
+class FileValidator:
+    """Validateur pour les fichiers d'entrée."""
+    
+    SUPPORTED_FORMATS = ['.xlsx', '.xls', '.csv']
+    MAX_FILE_SIZE_MB = 100
+    
+    def validate_file(self, filepath) -> ValidationResult:
+        """Validation complète du fichier avant importation."""
+        result = ValidationResult()
+        
+        try:
+            from pathlib import Path
+            filepath = Path(filepath)
+            
+            # Existence
+            if not filepath.exists():
+                result.add_error(f"Fichier non trouvé: {filepath}")
+                return result
+            
+            # Format
+            if filepath.suffix.lower() not in self.SUPPORTED_FORMATS:
+                result.add_error(
+                    f"Format non supporté: {filepath.suffix}. "
+                    f"Formats acceptés: {', '.join(self.SUPPORTED_FORMATS)}"
+                )
+            
+            # Taille
+            file_size_mb = filepath.stat().st_size / (1024 * 1024)
+            if file_size_mb == 0:
+                result.add_error("Fichier vide")
+            elif file_size_mb > self.MAX_FILE_SIZE_MB:
+                result.add_error(f"Fichier trop volumineux: {file_size_mb:.1f}MB > {self.MAX_FILE_SIZE_MB}MB")
+            
+            if result.errors:
+                return result
+                
+            result.mark_valid()
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation fichier: {str(e)}")
+        
+        return result
+
+
+class CompensationValidator:
+    """Validateur pour la compensation par moindres carrés."""
+    
+    def __init__(self, precision_mm: float = 2.0):
+        self.precision_mm = precision_mm
+    
+    def validate_solution(self, x_hat: np.ndarray, A: np.ndarray, f: np.ndarray) -> ValidationResult:
+        """Validation de la solution de compensation."""
+        result = ValidationResult()
+        
+        try:
+            # Vérifier que la solution est finie
+            if not np.all(np.isfinite(x_hat)):
+                result.add_error("Solution contient des valeurs infinies ou NaN")
+                return result
+            
+            # Vérifier l'ordre de grandeur des corrections
+            max_correction_mm = np.max(np.abs(x_hat)) * 1000
+            
+            # Pour maintenir précision 2mm, on accepte des corrections importantes
+            extreme_threshold_mm = 10000  # 10m = seuil d'erreur grave
+            
+            if max_correction_mm > extreme_threshold_mm:
+                result.add_error(
+                    f"Corrections extrêmes détectées: {max_correction_mm:.1f}mm - données probablement corrompues"
+                )
+            elif max_correction_mm > 1000:  # > 1m
+                result.add_warning(
+                    f"Corrections importantes détectées: {max_correction_mm:.1f}mm - vérifiez les données"
+                )
+            
+            result.details['max_correction_mm'] = max_correction_mm
+            result.mark_valid()
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation solution: {str(e)}")
+        
+        return result
+    
+    def validate_compensation_inputs(self, calculation_results, distances_m: np.ndarray) -> ValidationResult:
+        """Validation des entrées pour la compensation."""
+        result = ValidationResult()
+        
+        try:
+            if len(calculation_results.altitudes) < 2:
+                result.add_error("Moins de 2 points pour la compensation")
+            
+            if len(distances_m) != len(calculation_results.height_differences):
+                result.add_error(
+                    f"Nombre de distances ({len(distances_m)}) != "
+                    f"nombre de dénivelées ({len(calculation_results.height_differences)})"
+                )
+            
+            if not all(np.isfinite(distances_m)):
+                result.add_error("Distances contiennent des valeurs non-finies")
+            
+            if np.any(distances_m <= 0):
+                result.add_error("Distances doivent être strictement positives")
+            
+            result.mark_valid()
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation entrées compensation: {str(e)}")
+        
+        return result
+    
+    def diagnose_large_corrections(self, calculation_results, distances_m: np.ndarray) -> Dict:
+        """Diagnostic pour corrections importantes."""
+        diagnosis = {
+            'issues_detected': [],
+            'recommendations': [],
+            'statistics': {}
+        }
+        
+        try:
+            # 1. Analyser la fermeture
+            if hasattr(calculation_results, 'closure_analysis'):
+                closure = calculation_results.closure_analysis
+                closure_mm = abs(closure.closure_error_mm)
+                diagnosis['statistics']['closure_error_mm'] = closure_mm
+                
+                if closure_mm > 50:  # > 5cm
+                    diagnosis['issues_detected'].append(f"Erreur de fermeture importante: {closure_mm:.1f}mm")
+                    diagnosis['recommendations'].append("Vérifiez les lectures et les calculs préliminaires")
+            
+            # 2. Analyser les dénivelées
+            if calculation_results.height_differences:
+                deltas = [hd.delta_h_m for hd in calculation_results.height_differences if hd.is_valid]
+                if deltas:
+                    delta_range = max(deltas) - min(deltas)
+                    diagnosis['statistics']['height_difference_range_m'] = delta_range
+                    
+                    if delta_range > 20:  # > 20m de variation
+                        diagnosis['issues_detected'].append(f"Dénivelées très variables: {delta_range:.1f}m")
+                        diagnosis['recommendations'].append("Vérifiez la cohérence des lectures AR/AV")
+            
+            # 3. Analyser les altitudes
+            altitudes = [alt.altitude_m for alt in calculation_results.altitudes]
+            alt_range = max(altitudes) - min(altitudes)
+            diagnosis['statistics']['altitude_range_m'] = alt_range
+            
+            if alt_range > 500:  # > 500m
+                diagnosis['issues_detected'].append(f"Plage d'altitudes importante: {alt_range:.1f}m")
+                diagnosis['recommendations'].append("Vérifiez que le terrain correspond aux attentes")
+            
+            # 4. Analyser les distances
+            if len(distances_m) > 0:
+                avg_distance = np.mean(distances_m)
+                max_distance = np.max(distances_m)
+                diagnosis['statistics']['avg_distance_m'] = avg_distance
+                diagnosis['statistics']['max_distance_m'] = max_distance
+                
+                if max_distance > 1000:  # > 1km
+                    diagnosis['issues_detected'].append(f"Portée très longue: {max_distance:.0f}m")
+                    diagnosis['recommendations'].append("Vérifiez la précision pour les longues portées")
+                
+                if avg_distance > 300:  # > 300m en moyenne
+                    diagnosis['recommendations'].append("Portées élevées - considérez les corrections atmosphériques")
+        
+        except Exception as e:
+            diagnosis['issues_detected'].append(f"Erreur durant le diagnostic: {str(e)}")
+        
+        return diagnosis

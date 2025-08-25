@@ -23,7 +23,7 @@ from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass
 
 from exceptions import FileImportError, DataValidationError
-from validators import DataStructureValidator, ValidationResult
+from validators import DataStructureValidator, ValidationResult, FileValidator
 
 
 @dataclass
@@ -134,6 +134,17 @@ class DataImporter:
         if filepath.stat().st_size > 100 * 1024 * 1024:  # 100 MB
             raise FileImportError(
                 f"Fichier trop volumineux: {filepath.stat().st_size / (1024*1024):.1f} MB > 100 MB",
+                filename=str(filepath)
+            )
+    
+    def _validate_file_new(self, filepath: Path):
+        """Validation du fichier - délègue au FileValidator."""
+        validator = FileValidator()
+        result = validator.validate_file(filepath)
+        
+        if not result.is_valid:
+            raise FileImportError(
+                f"Fichier invalide: {'; '.join(result.errors)}",
                 filename=str(filepath)
             )
     
@@ -394,17 +405,3 @@ class DataImporter:
             )
 
 
-# Fonctions utilitaires
-def quick_import(filepath: Union[str, Path], **kwargs) -> ImportedData:
-    """Import rapide avec paramètres par défaut."""
-    importer = DataImporter()
-    return importer.import_file(filepath, **kwargs)
-
-
-def validate_file_format(filepath: Union[str, Path]) -> bool:
-    """Validation rapide du format de fichier."""
-    try:
-        filepath = Path(filepath)
-        return filepath.suffix.lower() in DataImporter.SUPPORTED_FORMATS
-    except:
-        return False
