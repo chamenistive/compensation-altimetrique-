@@ -235,6 +235,349 @@ class MatrixBuilder:
         f = observed_height_differences - computed_height_differences
         return f.reshape(-1, 1)  # Vecteur colonne
     
+    def build_complete_system_restructured(self, calculation_results: CalculationResults,
+                                          distances_m: np.ndarray,
+                                          atmospheric_conditions,
+                                          instrumental_error_mm: float = 1.0,
+                                          kilometric_error_mm: float = 1.0) -> MatrixSystem:
+        """
+        Construction du système matriciel selon la nouvelle séquence:
+        1. Moyenne des distances par segment
+        2. Correction des niveaux apparents (courbure + réfraction)
+        3. Application corrections aux deltas moyens
+        4. Misclosure vector
+        5. Design matrix
+        6. Matrice de poids
+        """
+        from atmospheric_corrections import AtmosphericCorrector
+        
+        n_points = len(calculation_results.altitudes)
+        n_segments = n_points - 1
+        
+        print(f"🔧 Nouveau processus de compensation:")
+        print(f"   Points: {n_points}, Segments: {n_segments}")
+        
+        # 1. MOYENNE DES DISTANCES PAR SEGMENT
+        distances_mean_by_segment = self._calculate_mean_distances_by_segment(
+            calculation_results, distances_m, n_segments
+        )
+        print(f"   Distances moyennes par segment calculées")
+        
+        # 2. CORRECTION DES NIVEAUX APPARENTS
+        corrector = AtmosphericCorrector()
+        corrected_deltas = self._apply_level_apparent_corrections(
+            calculation_results, distances_mean_by_segment, corrector, atmospheric_conditions
+        )
+        print(f"   Corrections de niveaux apparents appliquées")
+        
+        # 4. DESIGN MATRIX robuste selon votre logique (calculé en premier pour avoir les dimensions)
+        A = self._build_robust_design_matrix(calculation_results)
+        print(f"   Design matrix robuste construite: {A.shape}")
+        
+        # 3. MISCLOSURE VECTOR avec deltas corrigés (adapté aux dimensions de A)
+        m_observations = A.shape[0]
+        f = self._build_misclosure_vector_corrected(corrected_deltas, calculation_results, m_observations)
+        print(f"   Misclosure vector calculé: {f.shape}")
+        
+        # 5. MATRICE DE POIDS avec distances moyennes (adaptée aux dimensions de A)
+        m_observations = A.shape[0]  # Nombre d'observations = nombre de lignes de A
+        P = self._build_weight_matrix_simplified(
+            distances_mean_by_segment, instrumental_error_mm, kilometric_error_mm,
+            m_observations
+        )
+        print(f"   Matrice de poids construite: {P.shape}")
+        
+        # 6. Identifiants (adaptés aux nouvelles dimensions)
+        point_ids = [alt.point_id for alt in calculation_results.altitudes]
+        observation_ids = [f"obs_{i+1}" for i in range(m_observations)]
+        
+        return MatrixSystem(
+            A=A, P=P, f=f,
+            point_ids=point_ids,
+            observation_ids=observation_ids
+        )
+    
+    def _calculate_mean_distances_by_segment(self, calculation_results: CalculationResults, 
+                                           distances_m: np.ndarray, n_segments: int) -> np.ndarray:
+        """1. Calcul de la moyenne des distances par segment: DM = (Ds1 + Ds2)/2."""
+        mean_distances = np.zeros(n_segments)
+        
+        # Grouper les distances par segment selon les instruments
+        # Chaque segment devrait avoir 2 distances (instrument 1 et 2)
+        for seg in range(n_segments):
+            # Récupérer les distances pour ce segment
+            segment_distances = []
+            
+            # Si on a exactement 2*n_segments distances (2 par segment)
+            if len(distances_m) == 2 * n_segments:
+                ds1 = distances_m[seg * 2]      # Distance instrument 1
+                ds2 = distances_m[seg * 2 + 1]  # Distance instrument 2
+                segment_distances = [ds1, ds2]
+            # Si on a n_segments distances (1 par segment)
+            elif len(distances_m) == n_segments:
+                if seg < len(distances_m):
+                    # Utiliser la distance disponible comme moyenne
+                    mean_distances[seg] = distances_m[seg]
+                    continue
+                else:
+                    segment_distances = [100.0, 100.0]  # Distances par défaut
+            else:
+                # Essayer de récupérer 2 distances par segment
+                start_idx = seg * 2
+                if start_idx < len(distances_m):
+                    segment_distances.append(distances_m[start_idx])
+                if start_idx + 1 < len(distances_m):
+                    segment_distances.append(distances_m[start_idx + 1])
+                
+                # Compléter avec distance par défaut si nécessaire
+                while len(segment_distances) < 2:
+                    segment_distances.append(100.0)
+            
+            # Appliquer la formule: DM = (Ds1 + Ds2) / 2
+            if len(segment_distances) >= 2:
+                mean_distances[seg] = (segment_distances[0] + segment_distances[1]) / 2.0
+            else:
+                mean_distances[seg] = segment_distances[0] if segment_distances else 100.0
+        
+        return mean_distances
+    
+    def _apply_level_apparent_corrections(self, calculation_results: CalculationResults,
+                                        distances_mean: np.ndarray, 
+                                        corrector, atmospheric_conditions) -> np.ndarray:
+        """2. Application des corrections de niveaux apparents aux deltas moyens.
+        
+        Formule: correction = (DM²/2R) + (-K * DM²/2R)
+        Application: deltacorrige = delta_moyen + correction_niveau_apparant
+        """
+        n_segments = len(distances_mean)
+        corrected_deltas = np.zeros(n_segments)
+        
+        # Constantes
+        EARTH_RADIUS = 6370000.0  # Rayon terrestre en mètres
+        K_COEFFICIENT = 0.13      # Coefficient K standard
+        
+        # Obtenir les deltas moyens calculés avec votre logique (delta_1 + delta_2) / 2
+        mean_deltas = []
+        if hasattr(calculation_results, 'height_differences'):
+            current_segment = []
+            
+            for hd in calculation_results.height_differences:
+                if hd.instrument_id == 1 and current_segment:
+                    # Nouveau segment, traiter le précédent
+                    if len(current_segment) >= 2:
+                        mean_delta = (current_segment[0].delta_h_m + current_segment[1].delta_h_m) / 2.0
+                    else:
+                        mean_delta = current_segment[0].delta_h_m
+                    mean_deltas.append(mean_delta)
+                    current_segment = [hd]
+                else:
+                    current_segment.append(hd)
+            
+            # Traiter le dernier segment
+            if current_segment:
+                if len(current_segment) >= 2:
+                    mean_delta = (current_segment[0].delta_h_m + current_segment[1].delta_h_m) / 2.0
+                else:
+                    mean_delta = current_segment[0].delta_h_m
+                mean_deltas.append(mean_delta)
+        
+        # Appliquer votre formule de correction aux deltas moyens
+        for i in range(n_segments):
+            if i < len(mean_deltas):
+                delta_moyen = mean_deltas[i]
+                distance_moyenne = distances_mean[i]
+                
+                # Formule: correction = (DM²/2R) + (-K * DM²/2R)
+                # Simplifiée: correction = DM² * (1 - K) / (2R)
+                dm_squared = distance_moyenne ** 2
+                terme1 = dm_squared / (2 * EARTH_RADIUS)          # DM²/2R
+                terme2 = -K_COEFFICIENT * dm_squared / (2 * EARTH_RADIUS)  # -K * DM²/2R
+                
+                correction_niveau_apparant = terme1 + terme2
+                
+                # Application: deltacorrige = delta_moyen + correction_niveau_apparant
+                corrected_deltas[i] = delta_moyen + correction_niveau_apparant
+                
+                print(f"   Segment {i+1}: DM={distance_moyenne:.1f}m, "
+                      f"correction={correction_niveau_apparant*1000:.3f}mm, "
+                      f"delta_moyen={delta_moyen*1000:.1f}mm → "
+                      f"delta_corrigé={corrected_deltas[i]*1000:.1f}mm")
+            else:
+                corrected_deltas[i] = 0.0
+        
+        return corrected_deltas
+    
+    def _build_misclosure_vector_corrected(self, corrected_deltas: np.ndarray,
+                                         calculation_results: CalculationResults,
+                                         m_observations: int = None) -> np.ndarray:
+        """3. Construction du misclosure vector avec les deltas corrigés.
+        
+        Règle: Pour tout point n'ayant pas de delta, le misclosure vector F = 0
+               F = deltacorrige - (altitude(i) - altitude(i-1))
+        """
+        # Utiliser m_observations si fourni, sinon utiliser len(corrected_deltas)
+        n_obs = m_observations if m_observations is not None else len(corrected_deltas)
+        f = np.zeros(n_obs)
+        
+        # Identifier quels segments ont des observations valides
+        segments_with_data = []
+        if hasattr(calculation_results, 'height_differences'):
+            # Vérifier quels segments ont des données
+            for i, hd in enumerate(calculation_results.height_differences):
+                if hd.is_valid:
+                    segment_idx = i // 2  # 2 instruments par segment
+                    if segment_idx not in segments_with_data and segment_idx < n_segments:
+                        segments_with_data.append(segment_idx)
+        
+        # Pour chaque observation
+        for i in range(n_obs):
+            if i < len(corrected_deltas) and i in segments_with_data and corrected_deltas[i] != 0:
+                # Observation avec données: F = deltacorrige - (altitude(i) - altitude(i-1))
+                if i+1 < len(calculation_results.altitudes):
+                    altitude_from = calculation_results.altitudes[i].altitude_m
+                    altitude_to = calculation_results.altitudes[i+1].altitude_m
+                    computed_delta = altitude_to - altitude_from
+                    
+                    f[i] = corrected_deltas[i] - computed_delta
+                    
+                    print(f"   F[{i+1}] = {corrected_deltas[i]*1000:.1f} - {computed_delta*1000:.1f} = {f[i]*1000:.1f}mm")
+                else:
+                    f[i] = 0.0
+            else:
+                # Observation sans delta: F = 0
+                f[i] = 0.0
+                print(f"   F[{i+1}] = 0.0 (pas de delta)")
+        
+        return f.reshape(-1, 1)
+    
+    def _build_robust_design_matrix(self, calculation_results: CalculationResults) -> np.ndarray:
+        """4. Construction de la design matrix robuste selon votre logique."""
+        
+        # Créer un DataFrame fictif basé sur les altitudes pour avoir les matricules
+        points_data = []
+        for alt in calculation_results.altitudes:
+            points_data.append({'Matricule': alt.point_id})
+        
+        df = pd.DataFrame(points_data)
+        
+        # Dimensions
+        m = len(df) - 1           # number of obs = n_points - 1
+        
+        # Point de référence = premier point du dataframe (fixé)
+        reference_point = df.loc[0, "Matricule"]
+        
+        # Points inconnus = tous sauf le point de référence
+        unknown_points = []
+        point_to_index = {}
+        
+        for i, matricule in enumerate(df["Matricule"]):
+            if matricule != reference_point:  # Exclure le point de référence
+                unknown_points.append(matricule)
+                # L'index dans la matrice A correspond à l'ordre d'apparition (sans le point de référence)
+                point_to_index[matricule] = len(point_to_index)
+        
+        n = len(unknown_points)   # number of unknowns
+        
+        print(f"   Design matrix: {m}×{n} (ref: {reference_point}, unknowns: {n})")
+        
+        # Construction de la matrice A
+        A = np.zeros((m, n))
+        
+        for i in range(1, len(df)):  # Commencer à 1 (skip reference point)
+            p = df.loc[i-1, "Matricule"]  # Point de départ
+            q =5 df.loc[i, "Matricule"]    # Point d'arrivée
+            
+            # Fill A row (i-1 car on commence à i=1)
+            if p in point_to_index:
+                A[i-1, point_to_index[p]] = -1  # Point de départ
+            if q in point_to_index:
+                A[i-1, point_to_index[q]] = +1  # Point d'arrivée
+        
+        return A
+    
+    def _build_weight_matrix_simplified(self, distances_mean: np.ndarray,
+                                      instrumental_error_mm: float,
+                                      kilometric_error_mm: float,
+                                      m_observations: int = None) -> np.ndarray:
+        """5. Construction de la matrice de poids avec distances moyennes."""
+        # Si m_observations est fourni, utiliser cette dimension pour la cohérence
+        n_obs = m_observations if m_observations is not None else len(distances_mean)
+        
+        weights = np.zeros(n_obs)
+        
+        for i in range(n_obs):
+            # Utiliser la distance correspondante ou la dernière disponible
+            if i < len(distances_mean):
+                dist_m = distances_mean[i]
+            else:
+                dist_m = distances_mean[-1] if len(distances_mean) > 0 else 100.0
+            
+            # Conversion en kilomètres
+            dist_km = dist_m / 1000.0
+            
+            # Variance théorique: σ² = a² + b²×d (mm²)
+            variance_mm2 = instrumental_error_mm**2 + (kilometric_error_mm * dist_km)**2
+            
+            # Poids = 1/variance
+            weights[i] = 1.0 / variance_mm2
+        
+        return np.diag(weights)
+    
+    def _calculate_direct_residuals(self, corrected_deltas: np.ndarray,
+                                   adjusted_altitudes: List,
+                                   calculation_results: CalculationResults) -> np.ndarray:
+        """Calcul direct des résidus selon votre formule.
+        
+        Formule: Residu = delta_corrige - (altitude_ajuste(i) - altitude_ajuste(i-1))
+        """
+        n_segments = len(corrected_deltas)
+        residuals = np.zeros(n_segments)
+        
+        # Identifier quels segments ont des observations valides
+        segments_with_data = []
+        if hasattr(calculation_results, 'height_differences'):
+            for i, hd in enumerate(calculation_results.height_differences):
+                if hd.is_valid:
+                    segment_idx = i // 2
+                    if segment_idx not in segments_with_data and segment_idx < n_segments:
+                        segments_with_data.append(segment_idx)
+        
+        # Calculer les résidus pour chaque segment
+        for i in range(n_segments):
+            if i in segments_with_data and i < len(corrected_deltas):
+                # Résidu = delta_corrigé - (altitude_ajustée(i+1) - altitude_ajustée(i))
+                altitude_ajuste_from = adjusted_altitudes[i].altitude_m
+                altitude_ajuste_to = adjusted_altitudes[i+1].altitude_m
+                delta_ajuste = altitude_ajuste_to - altitude_ajuste_from
+                
+                residuals[i] = corrected_deltas[i] - delta_ajuste
+                
+                print(f"   Résidu[{i+1}] = {corrected_deltas[i]*1000:.1f} - {delta_ajuste*1000:.1f} = {residuals[i]*1000:.3f}mm")
+            else:
+                residuals[i] = 0.0
+        
+        return residuals.reshape(-1, 1)
+    
+    def _get_corrected_deltas(self, calculation_results: CalculationResults,
+                            distances_m: np.ndarray, atmospheric_conditions) -> np.ndarray:
+        """Méthode utilitaire pour récupérer les deltas corrigés."""
+        n_points = len(calculation_results.altitudes)
+        n_segments = n_points - 1
+        
+        # 1. Moyenne des distances
+        distances_mean_by_segment = self._calculate_mean_distances_by_segment(
+            calculation_results, distances_m, n_segments
+        )
+        
+        # 2. Application des corrections de niveaux apparents
+        from atmospheric_corrections import AtmosphericCorrector
+        corrector = AtmosphericCorrector()
+        corrected_deltas = self._apply_level_apparent_corrections(
+            calculation_results, distances_mean_by_segment, corrector, atmospheric_conditions
+        )
+        
+        return corrected_deltas
+
     def build_complete_system(self, calculation_results: CalculationResults,
                              distances_m: np.ndarray,
                              instrumental_error_mm: float = 1.0,
@@ -829,6 +1172,94 @@ class LevelingCompensator:
         self.statistical_analyzer = StatisticalAnalyzer(confidence_level)
         self.precision_validator = PrecisionValidator(precision_mm)
     
+    def compensate_restructured(self, calculation_results: CalculationResults,
+                              distances_m: np.ndarray,
+                              atmospheric_conditions,
+                              solution_method: Optional[SolutionMethod] = None) -> CompensationResults:
+        """
+        Compensation complète avec le nouveau processus restructuré.
+        
+        Processus:
+        1. Moyenne des distances par segment  
+        2. Correction des niveaux apparents (courbure + réfraction)
+        3. Application corrections aux deltas moyens
+        4. Misclosure vector
+        5. Design matrix
+        6. Matrice de poids
+        7. Résolution et analyse
+        """
+        try:
+            # 1-6. Construction du système matriciel avec nouveau processus
+            matrix_system = self.matrix_builder.build_complete_system_restructured(
+                calculation_results, distances_m, atmospheric_conditions,
+                self.instrumental_error_mm, self.kilometric_error_mm
+            )
+            
+            # Récupérer les deltas corrigés pour le calcul des résidus
+            corrected_deltas = self.matrix_builder._get_corrected_deltas(
+                calculation_results, distances_m, atmospheric_conditions
+            )
+            
+            # 7. Résolution par moindres carrés
+            x_hat, Qx = self.solver.solve_system(matrix_system, solution_method)
+            
+            # 8. Calcul des altitudes compensées
+            adjusted_altitudes = self._calculate_adjusted_altitudes(
+                calculation_results.altitudes, x_hat
+            )
+            
+            # 9. Calcul des résidus selon votre formule directe
+            print("🧮 Calcul des résidus selon formule directe:")
+            residuals = self.matrix_builder._calculate_direct_residuals(
+                corrected_deltas, adjusted_altitudes, calculation_results
+            )
+            
+            # 10. Analyse statistique avec résidus matriciels pour compatibilité
+            matrix_residuals = matrix_system.A @ x_hat - matrix_system.f
+            statistics = self.statistical_analyzer.analyze_compensation(
+                matrix_system, x_hat, Qx
+            )
+            
+            # 11. Métadonnées
+            metadata = {
+                'compensation_timestamp': pd.Timestamp.now(),
+                'method_used': solution_method or self.solver._select_optimal_method(
+                    matrix_system.A, matrix_system.P
+                ),
+                'system_size': f"{matrix_system.A.shape[0]}x{matrix_system.A.shape[1]}",
+                'condition_number': np.linalg.cond(matrix_system.A),
+                'max_correction_mm': np.max(np.abs(x_hat)) * 1000,
+                'precision_target_mm': self.precision_mm,
+                'process_type': 'restructured_with_level_apparent_corrections'
+            }
+            
+            # 12. Détection des fautes grossières
+            normalized_residuals = self.statistical_analyzer._calculate_normalized_residuals(
+                residuals, matrix_system.A, matrix_system.P, Qx, statistics.sigma_0_hat
+            )
+            
+            blunder_report = self.statistical_analyzer.detect_blunders(
+                normalized_residuals, statistics.blunder_detection_threshold,
+                matrix_system.observation_ids
+            )
+            metadata['blunder_detection'] = blunder_report
+            
+            return CompensationResults(
+                adjusted_coordinates=x_hat,
+                adjusted_altitudes=adjusted_altitudes,
+                residuals=residuals,
+                covariance_matrix=Qx,
+                statistics=statistics,
+                solution_method=metadata['method_used'],
+                computation_metadata=metadata
+            )
+            
+        except Exception as e:
+            raise CalculationError(
+                f"Erreur compensation restructurée: {str(e)}",
+                calculation_type="compensation_restructured"
+            )
+
     def compensate(self, calculation_results: CalculationResults,
                   distances_m: np.ndarray,
                   solution_method: Optional[SolutionMethod] = None) -> CompensationResults:
@@ -1116,7 +1547,3 @@ class LevelingCompensator:
             data.append(row)
         
         return pd.DataFrame(data)
-
-
-
-

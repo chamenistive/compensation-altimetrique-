@@ -34,15 +34,18 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from data_importer import DataImporter, quick_import
-from calculator import LevelingCalculator, quick_leveling_calculation
-from compensator import LevelingCompensator, quick_compensation
+from data_importer import DataImporter
+from calculator import LevelingCalculator
+from compensator import LevelingCompensator
 from validators import PrecisionValidator
 from exceptions import *
 from atmospheric_corrections import (
     AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
 )
-from visualizer import LevelingVisualizer, quick_visualization
+from visualizer import LevelingVisualizer
+from utils import (
+    quick_import, quick_leveling_calculation, quick_compensation, quick_visualization
+)
 
 
 class LevelingApplication:

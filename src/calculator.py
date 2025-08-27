@@ -98,62 +98,53 @@ class HeightDifferenceCalculator:
         self.precision_mm = precision_mm
         self.precision_m = precision_mm / 1000.0
     
-    def calculate_height_differences(self, df: pd.DataFrame, 
-                                   ar_columns: List[str], 
-                                   av_columns: List[str]) -> List[HeightDifference]:
+    def calculate_denivelee(self, df: pd.DataFrame, 
+                          ar_columns: List[str], 
+                          av_columns: List[str]) -> List[List[HeightDifference]]:
         """
-        Calcul des dénivelées selon la logique correcte du nivellement géométrique.
+        Calcul des dénivelées individuelles pour chaque instrument.
         
-        Algorithme corrigé:
-        1. Le premier point est le point de référence (pas de dénivelée calculée)
-        2. À partir du point 2: Δh(i) = AR(i-1) - AV(i) 
-        3. Moyenne des instruments: Δh_moy = (Δh₁ + Δh₂) / 2
-        4. Validation et contrôle des résidus
+        Algorithme:
+        1. Pour chaque segment (point i-1 → point i)
+        2. Pour chaque instrument: Δh = AR(i-1) - AV(i)
+        3. Retourne les dénivelées séparées par segment
         
         Args:
             df: DataFrame avec les observations
-            ar_columns: Colonnes des lectures arrière (exactement 2)
-            av_columns: Colonnes des lectures avant (exactement 2)
+            ar_columns: Colonnes des lectures arrière
+            av_columns: Colonnes des lectures avant
             
         Returns:
-            List[HeightDifference]: Dénivelées calculées (N-1 pour N points)
+            List[List[HeightDifference]]: Dénivelées par segment et par instrument
         """
-        # Validation stricte: exactement 2 instruments
+        # Validations de base
         if len(ar_columns) != len(av_columns):
             raise CalculationError(
                 "Nombre incohérent de colonnes AR et AV",
-                calculation_type="height_differences",
+                calculation_type="denivelee",
                 input_values={'ar_count': len(ar_columns), 'av_count': len(av_columns)}
-            )
-        
-        if len(ar_columns) != 2:
-            raise CalculationError(
-                f"L'approche stricte requiert exactement 2 instruments, {len(ar_columns)} détectés",
-                calculation_type="height_differences",
-                input_values={'instrument_count': len(ar_columns)}
             )
         
         if len(df) < 2:
             raise CalculationError(
                 "Au moins 2 points sont nécessaires pour calculer des dénivelées",
-                calculation_type="height_differences"
+                calculation_type="denivelee"
             )
         
-        height_differences = []
+        all_segments = []
         
-        # Commencer à partir de la ligne 1 (index 1) - le point 2
+        # Calculer pour chaque segment
         for current_idx in range(1, len(df)):
             previous_row = df.iloc[current_idx - 1]
             current_row = df.iloc[current_idx]
             
-            deltas_for_average = []
-            row_deltas = []
+            segment_deltas = []
             
-            # Calcul pour chaque instrument: AR(précédent) - AV(actuel)
+            # Calcul pour chaque instrument
             for inst_id, (ar_col, av_col) in enumerate(zip(ar_columns, av_columns), 1):
                 # Lecture AR du point précédent
                 ar_reading = pd.to_numeric(previous_row[ar_col], errors='coerce')
-                # Lecture AV du point actuel
+                # Lecture AV du point actuel  
                 av_reading = pd.to_numeric(current_row[av_col], errors='coerce')
                 
                 if pd.notna(ar_reading) and pd.notna(av_reading):
@@ -171,34 +162,150 @@ class HeightDifferenceCalculator:
                         is_valid=True
                     )
                     
-                    row_deltas.append(height_diff)
-                    deltas_for_average.append(delta_h)
+                    segment_deltas.append(height_diff)
+                else:
+                    # Dénivelée invalide
+                    height_diff = HeightDifference(
+                        delta_h_m=0.0,
+                        ar_reading=ar_reading if pd.notna(ar_reading) else 0.0,
+                        av_reading=av_reading if pd.notna(av_reading) else 0.0,
+                        instrument_id=inst_id,
+                        is_valid=False
+                    )
+                    segment_deltas.append(height_diff)
             
-            # Calcul de la dénivelée moyenne (Δh₁ + Δh₂) / 2
-            if deltas_for_average:
-                mean_delta_h = sum(deltas_for_average) / len(deltas_for_average)
-                
-                # Créer la dénivelée moyenne finale
-                mean_height_diff = HeightDifference(
-                    delta_h_m=mean_delta_h,
-                    ar_reading=sum(hd.ar_reading for hd in row_deltas) / len(row_deltas),
-                    av_reading=sum(hd.av_reading for hd in row_deltas) / len(row_deltas),
-                    instrument_id=0,  # 0 = moyenne
-                    is_valid=True
-                )
-                
-                height_differences.append(mean_height_diff)
-                
-                # Calcul du contrôle des résidus si plusieurs instruments
-                if len(row_deltas) > 1:
-                    self._calculate_control_residuals(row_deltas, current_idx)
-            else:
-                raise CalculationError(
-                    f"Aucune lecture valide pour calculer la dénivelée au point {current_idx}",
-                    calculation_type="height_differences"
-                )
+            all_segments.append(segment_deltas)
         
-        return height_differences
+        return all_segments
+    
+    def calculate_denivelee_moyenne(self, denivelees_par_segment: List[List[HeightDifference]]) -> List[HeightDifference]:
+        """
+        Calcul des dénivelées moyennes à partir des dénivelées individuelles.
+        
+        Args:
+            denivelees_par_segment: Dénivelées individuelles par segment
+            
+        Returns:
+            List[HeightDifference]: Dénivelées moyennes par segment
+        """
+        moyennes = []
+        
+        for segment_idx, segment_deltas in enumerate(denivelees_par_segment):
+            # Filtrer les dénivelées valides
+            valid_deltas = [hd for hd in segment_deltas if hd.is_valid]
+            
+            if not valid_deltas:
+                raise CalculationError(
+                    f"Aucune dénivelée valide pour le segment {segment_idx + 1}",
+                    calculation_type="denivelee_moyenne"
+                )
+            
+            # Calcul de la moyenne
+            mean_delta_h = sum(hd.delta_h_m for hd in valid_deltas) / len(valid_deltas)
+            
+            # Créer la dénivelée moyenne
+            mean_height_diff = HeightDifference(
+                delta_h_m=mean_delta_h,
+                ar_reading=sum(hd.ar_reading for hd in valid_deltas) / len(valid_deltas),
+                av_reading=sum(hd.av_reading for hd in valid_deltas) / len(valid_deltas),
+                instrument_id=0,  # 0 = moyenne
+                is_valid=True
+            )
+            
+            moyennes.append(mean_height_diff)
+        
+        return moyennes
+    
+    def calculate_controle(self, denivelees_par_segment: List[List[HeightDifference]]) -> Dict:
+        """
+        Calcul du contrôle entre les instruments.
+        
+        Args:
+            denivelees_par_segment: Dénivelées individuelles par segment
+            
+        Returns:
+            Dict: Statistiques de contrôle
+        """
+        controles = []
+        segments_problematiques = []
+        
+        for segment_idx, segment_deltas in enumerate(denivelees_par_segment):
+            valid_deltas = [hd for hd in segment_deltas if hd.is_valid]
+            
+            if len(valid_deltas) >= 2:
+                # Calcul du contrôle entre instruments
+                deltas_values = [hd.delta_h_m for hd in valid_deltas]
+                mean_delta = sum(deltas_values) / len(deltas_values)
+                
+                # Calcul des résidus
+                residuals = [delta - mean_delta for delta in deltas_values]
+                max_diff_mm = max(deltas_values) - min(deltas_values)
+                max_diff_mm *= 1000  # Conversion en mm
+                
+                # Critère de contrôle: différence max entre instruments
+                tolerance_mm = 5.0
+                is_acceptable = max_diff_mm <= tolerance_mm
+                
+                controle_info = {
+                    'segment': segment_idx + 1,
+                    'denivelees_mm': [d * 1000 for d in deltas_values],
+                    'moyenne_mm': mean_delta * 1000,
+                    'residus_mm': [r * 1000 for r in residuals],
+                    'ecart_max_mm': max_diff_mm,
+                    'tolerance_mm': tolerance_mm,
+                    'acceptable': is_acceptable
+                }
+                
+                controles.append(controle_info)
+                
+                if not is_acceptable:
+                    segments_problematiques.append(segment_idx + 1)
+                    
+                # Mettre à jour les résidus dans les objets HeightDifference
+                for i, hd in enumerate(valid_deltas):
+                    hd.control_residual = residuals[i]
+        
+        # Statistiques globales
+        if controles:
+            ecarts_mm = [c['ecart_max_mm'] for c in controles]
+            return {
+                'controles_par_segment': controles,
+                'ecart_max_global_mm': max(ecarts_mm),
+                'ecart_moyen_mm': sum(ecarts_mm) / len(ecarts_mm),
+                'segments_problematiques': segments_problematiques,
+                'qualite_globale': 'ACCEPTABLE' if not segments_problematiques else 'ATTENTION',
+                'nombre_segments': len(controles)
+            }
+        else:
+            return {'erreur': 'Aucun contrôle possible'}
+    
+    def calculate_height_differences(self, df: pd.DataFrame, 
+                                   ar_columns: List[str], 
+                                   av_columns: List[str]) -> List[HeightDifference]:
+        """
+        Calcul complet des dénivelées (méthode legacy - utilise les nouvelles méthodes modulaires).
+        
+        Cette méthode utilise maintenant les nouvelles méthodes modulaires :
+        1. calculate_denivelee() - Dénivelées individuelles
+        2. calculate_denivelee_moyenne() - Moyennes
+        3. calculate_controle() - Contrôle (optionnel)
+        
+        Returns:
+            List[HeightDifference]: Dénivelées moyennes calculées
+        """
+        # Utiliser les nouvelles méthodes modulaires
+        denivelees_individuelles = self.calculate_denivelee(df, ar_columns, av_columns)
+        moyennes = self.calculate_denivelee_moyenne(denivelees_individuelles)
+        
+        # Contrôle optionnel (pour compatibilité)
+        try:
+            controle_result = self.calculate_controle(denivelees_individuelles)
+            if controle_result.get('segments_problematiques'):
+                print(f"⚠️ Contrôle: {len(controle_result['segments_problematiques'])} segments problématiques")
+        except Exception:
+            pass  # Contrôle échoué mais on continue
+            
+        return moyennes
     
     def _validate_readings(self, ar: float, av: float, row_index: int):
         """Validation des lectures AR et AV - délègue au CalculationValidator."""
@@ -300,11 +407,12 @@ class AltitudeCalculator:
                           height_differences: List[HeightDifference],
                           point_ids: pd.Series) -> List[AltitudeCalculation]:
         """
-        Calcul des altitudes avec la logique corrigée.
+        Calcul des altitudes avec la nouvelle logique.
         
-        Algorithme adapté:
-        - Point 1: Altitude de référence (initial_altitude)
-        - Point i (i≥2): H_i = H_{i-1} + Δh_{i-1→i}
+        Algorithme:
+        - Point 1: Altitude de référence (inchangée) = initial_altitude
+        - Point 2: H_2 = H_1 + mean_delta où mean_delta = (delta_1 + delta_2) / 2.0
+        - Point i (i≥3): H_i = H_{i-1} + delta_h_{i-1→i}
         
         Args:
             initial_altitude: Altitude du point de référence (point 1)
@@ -458,7 +566,7 @@ class ClosureCalculator:
         Analyse complète de la fermeture du cheminement.
         
         Algorithme:
-        1. Détermination du type (fermé/ouvert)
+        1. Détermination du type (fermé/encadré)
         2. Calcul de l'erreur de fermeture
         3. Calcul de la tolérance: T = 4×√K (mm)
         4. Validation selon les normes
@@ -466,7 +574,7 @@ class ClosureCalculator:
         Args:
             altitudes: Liste des altitudes calculées
             total_distance_km: Distance totale du cheminement
-            known_final_altitude: Altitude connue du point final (si ouvert)
+            known_final_altitude: Altitude connue du point final (si encadré)
             
         Returns:
             ClosureAnalysis: Analyse complète de fermeture
