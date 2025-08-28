@@ -485,7 +485,7 @@ class MatrixBuilder:
         
         for i in range(1, len(df)):  # Commencer à 1 (skip reference point)
             p = df.loc[i-1, "Matricule"]  # Point de départ
-            q =5 df.loc[i, "Matricule"]    # Point d'arrivée
+            q = df.loc[i, "Matricule"]    # Point d'arrivée
             
             # Fill A row (i-1 car on commence à i=1)
             if p in point_to_index:
@@ -614,33 +614,46 @@ class MatrixBuilder:
         print(f"   Redondance: {n_observations - n_segments}")
         
         if n_observations <= n_segments:
-            print("⚠️ Pas assez de redondance - utilisation de la moyenne par segment")
-            # Fallback : moyenner par segment
-            segment_means = []
-            for seg in range(n_segments):
-                segment_obs = [observed_deltas[i] for i, s in enumerate(observation_to_segment) if s == seg]
-                if segment_obs:
-                    segment_means.append(np.mean(segment_obs))
-                else:
-                    segment_means.append(0.0)
+            print("⚠️ Redondance insuffisante pour compensation par moindres carrés")
+            print(f"   Solution: Fixer aussi le point final pour créer de la redondance")
+            print(f"   Actuellement: {n_observations} observations, {n_segments} segments")
+            print(f"   Avec point final fixé: {n_observations} observations, {n_segments-1} inconnues")
             
-            observed_deltas = np.array(segment_means)
-            n_observations = len(observed_deltas)
-            observation_to_segment = list(range(n_segments))
+            # Pour cheminement ouvert: fixer les deux extrémités
+            # Cela réduit le nombre d'inconnues à n_segments-1
+            # et permet la compensation si n_observations > n_segments-1
+            pass  # On garde toutes les observations mais on modifiera la matrice A
         
-        # 2. Construction de la matrice A
-        A = self.build_design_matrix(n_points, n_observations, reference_fixed=True)
+        # 2. Construction de la matrice A - adaptation pour cheminement ouvert
+        if n_observations <= n_segments:
+            # Pour cheminement ouvert: fixer les deux extrémités
+            n_unknowns = n_segments - 1  # Fixer premier ET dernier point
+            print(f"   Matrice A: {n_observations} obs × {n_unknowns} inconnues (points 2 à {n_segments})")
+        else:
+            # Cas normal avec redondance
+            n_unknowns = n_segments
+            print(f"   Matrice A: {n_observations} obs × {n_unknowns} inconnues")
         
-        # 3. Ajuster la matrice A selon le mapping observations->segments
+        # Construction manuelle de la matrice A
+        A = np.zeros((n_observations, n_unknowns))
+        
+        # 3. Remplir la matrice A selon le mapping observations->segments
         if len(observation_to_segment) == n_observations:
-            A_adjusted = np.zeros((n_observations, n_segments))
             for obs_idx in range(n_observations):
                 segment_idx = observation_to_segment[obs_idx]
-                if segment_idx < n_segments:
-                    A_adjusted[obs_idx, segment_idx] = 1.0
-                    if segment_idx > 0:
-                        A_adjusted[obs_idx, segment_idx-1] = -1.0
-            A = A_adjusted
+                
+                if n_unknowns == n_segments - 1:
+                    # Cheminement ouvert: points 1 et n fixés, inconnues = points 2 à n-1
+                    if 1 <= segment_idx <= n_unknowns:  # Segments concernent les points internes
+                        A[obs_idx, segment_idx-1] = 1.0  # Point d'arrivée
+                        if segment_idx > 1:
+                            A[obs_idx, segment_idx-2] = -1.0  # Point de départ
+                else:
+                    # Cas normal
+                    if segment_idx < n_unknowns:
+                        A[obs_idx, segment_idx] = 1.0
+                        if segment_idx > 0:
+                            A[obs_idx, segment_idx-1] = -1.0
         
         # 4. Matrice de poids - une par observation
         if len(distances_m) != n_observations:
@@ -1347,18 +1360,31 @@ class LevelingCompensator:
                                     corrections: np.ndarray) -> List[AltitudeCalculation]:
         """Calcul des altitudes compensées."""
         adjusted_altitudes = []
+        n_corrections = corrections.shape[0]
+        n_points = len(original_altitudes)
         
         for i, original_alt in enumerate(original_altitudes):
-            if i == 0:  # Point de référence non corrigé
+            if i == 0:  # Premier point fixe (référence)
                 adjusted_alt = AltitudeCalculation(
                     point_id=original_alt.point_id,
                     altitude_m=original_alt.altitude_m,
                     cumulative_delta_h=0.0,
                     is_reference=True
                 )
-            else:  # Points corrigés
-                correction = corrections[i-1, 0]  # Correction en mètres
-                adjusted_altitude = original_alt.altitude_m + correction
+            elif i == n_points - 1 and n_corrections == n_points - 2:  # Dernier point fixe (cheminement ouvert)
+                adjusted_alt = AltitudeCalculation(
+                    point_id=original_alt.point_id,
+                    altitude_m=original_alt.altitude_m,  # Altitude finale fixée
+                    cumulative_delta_h=original_alt.cumulative_delta_h,
+                    is_reference=True
+                )
+            else:  # Points intermédiaires corrigés
+                correction_index = i - 1 if n_corrections == n_points - 1 else i - 1
+                if correction_index < n_corrections:
+                    correction = corrections[correction_index, 0]  # Correction en mètres
+                    adjusted_altitude = original_alt.altitude_m + correction
+                else:
+                    adjusted_altitude = original_alt.altitude_m  # Pas de correction disponible
                 
                 adjusted_alt = AltitudeCalculation(
                     point_id=original_alt.point_id,
@@ -1527,17 +1553,32 @@ class LevelingCompensator:
         """Export des résultats compensés vers DataFrame."""
         data = []
         
+        n_corrections = results.adjusted_coordinates.shape[0]
+        n_points = len(results.adjusted_altitudes)
+        
         for i, altitude in enumerate(results.adjusted_altitudes):
+            # Déterminer si ce point a une correction
+            has_correction = False
+            correction_value = 0.0
+            
+            if n_corrections == n_points - 1:  # Cas normal (premier point fixe)
+                if i > 0:
+                    correction_value = results.adjusted_coordinates[i-1, 0]
+                    has_correction = True
+            elif n_corrections == n_points - 2:  # Cheminement ouvert (deux points fixes)
+                if 0 < i < n_points - 1:
+                    correction_value = results.adjusted_coordinates[i-1, 0]
+                    has_correction = True
+            
             row = {
                 'Matricule': altitude.point_id,
-                'Altitude_originale': 
-                    results.adjusted_altitudes[i].altitude_m - 
-                    (results.adjusted_coordinates[i-1, 0] if i > 0 else 0),
-                'Correction_m': results.adjusted_coordinates[i-1, 0] if i > 0 else 0.0,
-                'Correction_mm': (results.adjusted_coordinates[i-1, 0] * 1000) if i > 0 else 0.0,
+                'Altitude_originale': altitude.altitude_m - correction_value,
+                'Correction_m': correction_value,
+                'Correction_mm': correction_value * 1000,
                 'Altitude_compensée': altitude.altitude_m,
                 'Est_référence': altitude.is_reference,
-                'Écart_type_mm': np.sqrt(results.covariance_matrix[i-1, i-1]) * 1000 if i > 0 else 0.0
+                'Écart_type_mm': (np.sqrt(results.covariance_matrix[i-1, i-1]) * 1000 
+                                if has_correction and i-1 < results.covariance_matrix.shape[0] else 0.0)
             }
             
             # Ajouter résidu si disponible

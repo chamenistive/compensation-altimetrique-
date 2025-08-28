@@ -393,6 +393,10 @@ class GeodeticValidator:
 class CompensationValidator:
     """Validateur pour la compensation par moindres carrés."""
     
+    def __init__(self, precision_mm: float = 2.0):
+        """Initialise le validateur de compensation."""
+        self.precision_mm = precision_mm
+    
     def validate_design_matrix(self, A: np.ndarray, n_observations: int, 
                              n_unknowns: int) -> ValidationResult:
         """Validation de la matrice de conception."""
@@ -450,6 +454,121 @@ class CompensationValidator:
             result.add_error(f"Erreur validation matrice P: {str(e)}")
         
         return result
+    
+    def validate_solution(self, x_hat: np.ndarray, A: np.ndarray, f: np.ndarray) -> ValidationResult:
+        """Validation de la solution de compensation."""
+        result = ValidationResult(True, [], [], {})
+        
+        try:
+            # Vérifier que la solution est finie
+            if not np.all(np.isfinite(x_hat)):
+                result.add_error("Solution contient des valeurs infinies ou NaN")
+                return result
+            
+            # Vérifier l'ordre de grandeur des corrections
+            max_correction_mm = np.max(np.abs(x_hat)) * 1000
+            
+            # Pour maintenir précision 2mm, on accepte des corrections importantes
+            extreme_threshold_mm = 10000  # 10m = seuil d'erreur grave
+            
+            if max_correction_mm > extreme_threshold_mm:
+                result.add_error(
+                    f"Corrections extrêmes détectées: {max_correction_mm:.1f}mm - données probablement corrompues"
+                )
+            elif max_correction_mm > 1000:  # > 1m
+                result.add_warning(
+                    f"Corrections importantes détectées: {max_correction_mm:.1f}mm - vérifiez les données"
+                )
+            
+            result.details['max_correction_mm'] = max_correction_mm
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation solution: {str(e)}")
+        
+        return result
+    
+    def validate_compensation_inputs(self, calculation_results, distances_m: np.ndarray) -> ValidationResult:
+        """Validation des entrées pour la compensation."""
+        result = ValidationResult(True, [], [], {})
+        
+        try:
+            if len(calculation_results.altitudes) < 2:
+                result.add_error("Moins de 2 points pour la compensation")
+            
+            if len(distances_m) != len(calculation_results.height_differences):
+                result.add_error(
+                    f"Nombre de distances ({len(distances_m)}) != "
+                    f"nombre de dénivelées ({len(calculation_results.height_differences)})"
+                )
+            
+            if not all(np.isfinite(distances_m)):
+                result.add_error("Distances contiennent des valeurs non-finies")
+            
+            if np.any(distances_m <= 0):
+                result.add_error("Distances doivent être strictement positives")
+            
+        except Exception as e:
+            result.add_error(f"Erreur validation entrées compensation: {str(e)}")
+        
+        return result
+    
+    def diagnose_large_corrections(self, calculation_results, distances_m: np.ndarray) -> Dict:
+        """Diagnostic pour corrections importantes."""
+        diagnosis = {
+            'issues_detected': [],
+            'recommendations': [],
+            'statistics': {}
+        }
+        
+        try:
+            # 1. Analyser la fermeture
+            if hasattr(calculation_results, 'closure_analysis'):
+                closure = calculation_results.closure_analysis
+                closure_mm = abs(closure.closure_error_mm)
+                diagnosis['statistics']['closure_error_mm'] = closure_mm
+                
+                if closure_mm > 50:  # > 5cm
+                    diagnosis['issues_detected'].append(f"Erreur de fermeture importante: {closure_mm:.1f}mm")
+                    diagnosis['recommendations'].append("Vérifiez les lectures et les calculs préliminaires")
+            
+            # 2. Analyser les dénivelées
+            if calculation_results.height_differences:
+                deltas = [hd.delta_h_m for hd in calculation_results.height_differences if hd.is_valid]
+                if deltas:
+                    delta_range = max(deltas) - min(deltas)
+                    diagnosis['statistics']['height_difference_range_m'] = delta_range
+                    
+                    if delta_range > 20:  # > 20m de variation
+                        diagnosis['issues_detected'].append(f"Dénivelées très variables: {delta_range:.1f}m")
+                        diagnosis['recommendations'].append("Vérifiez la cohérence des lectures AR/AV")
+            
+            # 3. Analyser les altitudes
+            altitudes = [alt.altitude_m for alt in calculation_results.altitudes]
+            alt_range = max(altitudes) - min(altitudes)
+            diagnosis['statistics']['altitude_range_m'] = alt_range
+            
+            if alt_range > 500:  # > 500m
+                diagnosis['issues_detected'].append(f"Plage d'altitudes importante: {alt_range:.1f}m")
+                diagnosis['recommendations'].append("Vérifiez que le terrain correspond aux attentes")
+            
+            # 4. Analyser les distances
+            if len(distances_m) > 0:
+                avg_distance = np.mean(distances_m)
+                max_distance = np.max(distances_m)
+                diagnosis['statistics']['avg_distance_m'] = avg_distance
+                diagnosis['statistics']['max_distance_m'] = max_distance
+                
+                if max_distance > 1000:  # > 1km
+                    diagnosis['issues_detected'].append(f"Portée très longue: {max_distance:.0f}m")
+                    diagnosis['recommendations'].append("Vérifiez la précision pour les longues portées")
+                
+                if avg_distance > 300:  # > 300m en moyenne
+                    diagnosis['recommendations'].append("Portées élevées - considérez les corrections atmosphériques")
+        
+        except Exception as e:
+            diagnosis['issues_detected'].append(f"Erreur durant le diagnostic: {str(e)}")
+        
+        return diagnosis
 
 
 class CalculationValidator:
@@ -579,127 +698,3 @@ class FileValidator:
         
         return result
 
-
-class CompensationValidator:
-    """Validateur pour la compensation par moindres carrés."""
-    
-    def __init__(self, precision_mm: float = 2.0):
-        self.precision_mm = precision_mm
-    
-    def validate_solution(self, x_hat: np.ndarray, A: np.ndarray, f: np.ndarray) -> ValidationResult:
-        """Validation de la solution de compensation."""
-        result = ValidationResult()
-        
-        try:
-            # Vérifier que la solution est finie
-            if not np.all(np.isfinite(x_hat)):
-                result.add_error("Solution contient des valeurs infinies ou NaN")
-                return result
-            
-            # Vérifier l'ordre de grandeur des corrections
-            max_correction_mm = np.max(np.abs(x_hat)) * 1000
-            
-            # Pour maintenir précision 2mm, on accepte des corrections importantes
-            extreme_threshold_mm = 10000  # 10m = seuil d'erreur grave
-            
-            if max_correction_mm > extreme_threshold_mm:
-                result.add_error(
-                    f"Corrections extrêmes détectées: {max_correction_mm:.1f}mm - données probablement corrompues"
-                )
-            elif max_correction_mm > 1000:  # > 1m
-                result.add_warning(
-                    f"Corrections importantes détectées: {max_correction_mm:.1f}mm - vérifiez les données"
-                )
-            
-            result.details['max_correction_mm'] = max_correction_mm
-            result.mark_valid()
-            
-        except Exception as e:
-            result.add_error(f"Erreur validation solution: {str(e)}")
-        
-        return result
-    
-    def validate_compensation_inputs(self, calculation_results, distances_m: np.ndarray) -> ValidationResult:
-        """Validation des entrées pour la compensation."""
-        result = ValidationResult()
-        
-        try:
-            if len(calculation_results.altitudes) < 2:
-                result.add_error("Moins de 2 points pour la compensation")
-            
-            if len(distances_m) != len(calculation_results.height_differences):
-                result.add_error(
-                    f"Nombre de distances ({len(distances_m)}) != "
-                    f"nombre de dénivelées ({len(calculation_results.height_differences)})"
-                )
-            
-            if not all(np.isfinite(distances_m)):
-                result.add_error("Distances contiennent des valeurs non-finies")
-            
-            if np.any(distances_m <= 0):
-                result.add_error("Distances doivent être strictement positives")
-            
-            result.mark_valid()
-            
-        except Exception as e:
-            result.add_error(f"Erreur validation entrées compensation: {str(e)}")
-        
-        return result
-    
-    def diagnose_large_corrections(self, calculation_results, distances_m: np.ndarray) -> Dict:
-        """Diagnostic pour corrections importantes."""
-        diagnosis = {
-            'issues_detected': [],
-            'recommendations': [],
-            'statistics': {}
-        }
-        
-        try:
-            # 1. Analyser la fermeture
-            if hasattr(calculation_results, 'closure_analysis'):
-                closure = calculation_results.closure_analysis
-                closure_mm = abs(closure.closure_error_mm)
-                diagnosis['statistics']['closure_error_mm'] = closure_mm
-                
-                if closure_mm > 50:  # > 5cm
-                    diagnosis['issues_detected'].append(f"Erreur de fermeture importante: {closure_mm:.1f}mm")
-                    diagnosis['recommendations'].append("Vérifiez les lectures et les calculs préliminaires")
-            
-            # 2. Analyser les dénivelées
-            if calculation_results.height_differences:
-                deltas = [hd.delta_h_m for hd in calculation_results.height_differences if hd.is_valid]
-                if deltas:
-                    delta_range = max(deltas) - min(deltas)
-                    diagnosis['statistics']['height_difference_range_m'] = delta_range
-                    
-                    if delta_range > 20:  # > 20m de variation
-                        diagnosis['issues_detected'].append(f"Dénivelées très variables: {delta_range:.1f}m")
-                        diagnosis['recommendations'].append("Vérifiez la cohérence des lectures AR/AV")
-            
-            # 3. Analyser les altitudes
-            altitudes = [alt.altitude_m for alt in calculation_results.altitudes]
-            alt_range = max(altitudes) - min(altitudes)
-            diagnosis['statistics']['altitude_range_m'] = alt_range
-            
-            if alt_range > 500:  # > 500m
-                diagnosis['issues_detected'].append(f"Plage d'altitudes importante: {alt_range:.1f}m")
-                diagnosis['recommendations'].append("Vérifiez que le terrain correspond aux attentes")
-            
-            # 4. Analyser les distances
-            if len(distances_m) > 0:
-                avg_distance = np.mean(distances_m)
-                max_distance = np.max(distances_m)
-                diagnosis['statistics']['avg_distance_m'] = avg_distance
-                diagnosis['statistics']['max_distance_m'] = max_distance
-                
-                if max_distance > 1000:  # > 1km
-                    diagnosis['issues_detected'].append(f"Portée très longue: {max_distance:.0f}m")
-                    diagnosis['recommendations'].append("Vérifiez la précision pour les longues portées")
-                
-                if avg_distance > 300:  # > 300m en moyenne
-                    diagnosis['recommendations'].append("Portées élevées - considérez les corrections atmosphériques")
-        
-        except Exception as e:
-            diagnosis['issues_detected'].append(f"Erreur durant le diagnostic: {str(e)}")
-        
-        return diagnosis
