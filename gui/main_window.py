@@ -42,14 +42,24 @@ class MainApplication(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        # Configuration de base
-        self.title("Système de Compensation Altimétrique")
-        self.geometry("900x600")  # Taille plus petite pour éviter les problèmes X11
-        self.minsize(800, 500)
+        # Configuration Windows Desktop moderne
+        self.title("🧮 Système de Compensation Altimétrique - Précision 2mm")
+        self.geometry(f"{AppTheme.SIZES['window_default_width']}x{AppTheme.SIZES['window_default_height']}")
+        self.minsize(AppTheme.SIZES['window_min_width'], AppTheme.SIZES['window_min_height'])
         
-        # Appliquer le thème
+        # Appliquer le thème géodésique
         AppTheme.apply_theme()
         self.configure(fg_color=AppTheme.COLORS['background'])
+        
+        # Configuration Windows native
+        try:
+            # Icône de l'application (si disponible)
+            self.iconbitmap(default='assets/icon.ico')
+        except:
+            pass  # Pas grave si l'icône n'existe pas
+            
+        # Position centrée sur l'écran
+        self.center_window_on_startup()
         
         # Variables d'état
         self.current_step = 0
@@ -68,21 +78,38 @@ class MainApplication(ctk.CTk):
             'humidity': 60.0
         }
         
-        # Initialisation de l'interface
+        # Initialisation de l'interface moderne
         self.create_widgets()
-        self.center_window()
         
         # Modules backend
-        self.data_importer = DataImporter()
-        self.calculator = None
-        self.compensator = None
+        try:
+            self.data_importer = DataImporter() if DataImporter else None
+            self.calculator = None
+            self.compensator = None
+        except:
+            # Mode démo si les modules ne sont pas disponibles
+            self.data_importer = None
+            self.calculator = None
+            self.compensator = None
+    
+    def center_window_on_startup(self):
+        """Centre la fenêtre sur l'écran au démarrage."""
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        
+        x = (screen_width - AppTheme.SIZES['window_default_width']) // 2
+        y = (screen_height - AppTheme.SIZES['window_default_height']) // 2
+        
+        # S'assurer que la fenêtre reste sur l'écran
+        x = max(0, x)
+        y = max(0, y)
+        
+        self.geometry(f"{AppTheme.SIZES['window_default_width']}x{AppTheme.SIZES['window_default_height']}+{x}+{y}")
     
     def center_window(self):
-        """Centre la fenêtre sur l'écran."""
-        self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (self.winfo_width() // 2)
-        y = (self.winfo_screenheight() // 2) - (self.winfo_height() // 2)
-        self.geometry(f"+{x}+{y}")
+        """Centre la fenêtre (pour usage général)."""
+        self.center_window_on_startup()
     
     def create_widgets(self):
         """Crée l'interface utilisateur."""
@@ -103,46 +130,71 @@ class MainApplication(ctk.CTk):
         self.show_step()
     
     def create_header(self):
-        """Crée l'en-tête avec titre et indicateur d'étapes."""
+        """Crée l'en-tête moderne avec titre et indicateur d'étapes."""
         
-        # Frame d'en-tête
-        header_frame = ThemedFrame(self)
+        # Frame d'en-tête avec style moderne
+        header_frame = ThemedFrame(self, elevated=True)
         header_frame.pack(fill='x', padx=AppTheme.SPACING['lg'], 
-                         pady=AppTheme.SPACING['lg'])
+                         pady=(AppTheme.SPACING['lg'], AppTheme.SPACING['section']))
         
-        # Titre principal
+        # Container principal pour centrage
+        header_content = ctk.CTkFrame(header_frame, fg_color='transparent')
+        header_content.pack(fill='both', expand=True, 
+                           padx=AppTheme.SPACING['xl'], 
+                           pady=AppTheme.SPACING['xl'])
+        
+        # Titre principal moderne
         title_label = ThemedLabel(
-            header_frame,
-            text="🎯 Système de Compensation Altimétrique",
-            style='title',
+            header_content,
+            text="🧮 Système de Compensation Altimétrique",
+            style='display',
             text_color=AppTheme.COLORS['primary']
         )
-        title_label.pack(pady=(AppTheme.SPACING['lg'], AppTheme.SPACING['md']))
+        title_label.pack(pady=(0, AppTheme.SPACING['sm']))
         
-        # Sous-titre
+        # Sous-titre avec badges de précision
+        subtitle_frame = ctk.CTkFrame(header_content, fg_color='transparent')
+        subtitle_frame.pack(pady=(0, AppTheme.SPACING['xl']))
+        
         subtitle_label = ThemedLabel(
-            header_frame,
-            text="Assistant de compensation par moindres carrés - Précision 2mm",
+            subtitle_frame,
+            text="Assistant professionnel de compensation par moindres carrés",
             style='body',
             text_color=AppTheme.COLORS['text_secondary']
         )
-        subtitle_label.pack(pady=(0, AppTheme.SPACING['lg']))
+        subtitle_label.pack()
         
-        # Indicateur d'étapes
+        # Badge de précision
+        precision_badge = ctk.CTkFrame(
+            subtitle_frame,
+            fg_color=AppTheme.COLORS['accent'],
+            corner_radius=AppTheme.SIZES['border_radius_large']
+        )
+        precision_badge.pack(pady=(AppTheme.SPACING['sm'], 0))
+        
+        badge_label = ThemedLabel(
+            precision_badge,
+            text="✨ Précision garantie : 2mm ✨",
+            style='body_medium',
+            text_color=AppTheme.COLORS['text_on_primary']
+        )
+        badge_label.pack(padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
+        
+        # Indicateur d'étapes moderne
         steps = [
-            "Import\\nDonnées", 
+            "Import\\nFichiers", 
             "Configuration\\nParamètres", 
             "Calculs\\nPréliminaires", 
             "Compensation\\nLSQ", 
-            "Résultats\\nRapports"
+            "Résultats\\n& Export"
         ]
         
         self.step_indicator = StepIndicator(
-            header_frame, 
+            header_content, 
             steps=steps, 
             current_step=self.current_step
         )
-        self.step_indicator.pack(pady=AppTheme.SPACING['md'])
+        self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
     
     def show_step(self):
         """Affiche l'étape courante."""
@@ -171,53 +223,114 @@ class MainApplication(ctk.CTk):
         self.status_bar.set_status(f"Étape {self.current_step + 1}/5 - {step_names[self.current_step]}")
     
     def show_import_step(self):
-        """Étape 1: Import des données."""
+        """Étape 1: Import des données avec design moderne."""
         
-        # Titre de l'étape
-        step_title = ThemedLabel(
-            self.main_frame,
-            text="📁 Import des Données de Nivellement",
-            style='heading',
-            text_color=AppTheme.COLORS['secondary']
+        # Container principal avec padding moderne
+        step_container = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        step_container.pack(fill='both', expand=True, padx=AppTheme.SPACING['xl'])
+        
+        # En-tête de l'étape avec icône moderne
+        header_card = ThemedFrame(step_container, elevated=True)
+        header_card.pack(fill='x', pady=(0, AppTheme.SPACING['section']))
+        
+        header_content = ctk.CTkFrame(header_card, fg_color='transparent')
+        header_content.pack(fill='x', padx=AppTheme.SPACING['xl'], pady=AppTheme.SPACING['lg'])
+        
+        # Titre avec icône moderne
+        title_frame = ctk.CTkFrame(header_content, fg_color='transparent')
+        title_frame.pack(fill='x')
+        
+        icon_label = ThemedLabel(
+            title_frame,
+            text="📁",
+            style='title',
+            text_color=AppTheme.COLORS['primary']
         )
-        step_title.pack(pady=(AppTheme.SPACING['lg'], AppTheme.SPACING['md']))
+        icon_label.pack(side='left')
         
-        # Description
-        desc_text = """
-Sélectionnez votre fichier Excel (.xlsx, .xls) ou CSV contenant les données de nivellement.
-Le fichier doit contenir les colonnes : Matricule, AR (lectures arrière), AV (lectures avant), et optionnellement les distances.
-        """
+        step_title = ThemedLabel(
+            title_frame,
+            text="Import des Données de Nivellement",
+            style='title',
+            text_color=AppTheme.COLORS['text']
+        )
+        step_title.pack(side='left', padx=(AppTheme.SPACING['md'], 0))
+        
+        # Description avec meilleure lisibilité
+        desc_text = ("Importez votre fichier de données de nivellement au format Excel ou CSV.\\n"
+                    "Colonnes requises : Matricule, AR (lectures arrière), AV (lectures avant)\\n"
+                    "Colonnes optionnelles : DIST (distances de visée)")
         
         desc_label = ThemedLabel(
-            self.main_frame,
-            text=desc_text.strip(),
-            style='body'
+            header_content,
+            text=desc_text,
+            style='body',
+            text_color=AppTheme.COLORS['text_secondary']
         )
-        desc_label.pack(pady=(0, AppTheme.SPACING['lg']))
+        desc_label.pack(pady=(AppTheme.SPACING['md'], 0), anchor='w')
         
-        # Zone de glisser-déposer / sélection de fichier
+        # Zone d'import moderne avec meilleur design
+        import_card = ThemedFrame(step_container, elevated=True)
+        import_card.pack(fill='x', pady=(0, AppTheme.SPACING['section']))
+        
+        # Zone de glisser-déposer améliorée
         self.file_drop = FileDropFrame(
-            self.main_frame,
+            import_card,
             callback=self.select_file
         )
-        self.file_drop.pack(fill='x', pady=AppTheme.SPACING['lg'])
+        self.file_drop.pack(fill='x', padx=AppTheme.SPACING['lg'], pady=AppTheme.SPACING['lg'])
         
-        # Frame pour les informations du fichier
-        self.file_info_frame = ThemedFrame(self.main_frame)
+        # Frame pour les informations du fichier (initialement caché)
+        self.file_info_frame = ThemedFrame(step_container)
         
-        # Boutons de navigation
-        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
-        nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
+        # Navigation moderne
+        nav_frame = ctk.CTkFrame(step_container, fg_color='transparent')
+        nav_frame.pack(side='bottom', fill='x', pady=(AppTheme.SPACING['section'], 0))
         
-        # Bouton Suivant (désactivé initialement)
+        # Boutons avec meilleur design
+        button_frame = ctk.CTkFrame(nav_frame, fg_color='transparent')
+        button_frame.pack(side='right')
+        
         self.next_button = ThemedButton(
-            nav_frame,
+            button_frame,
             text="Suivant →",
             command=self.next_step,
-            variant='primary'
+            variant='primary',
+            size='large'
         )
         self.next_button.pack(side='right')
         self.next_button.configure(state='disabled')
+        
+        # Aide contextuelle
+        help_button = ThemedButton(
+            button_frame,
+            text="? Aide",
+            command=self.show_import_help,
+            variant='ghost',
+            size='medium'
+        )
+        help_button.pack(side='right', padx=(0, AppTheme.SPACING['md']))
+    
+    def show_import_help(self):
+        """Affiche l'aide pour l'import de fichiers."""
+        from tkinter import messagebox
+        help_text = """
+FORMATS DE FICHIERS SUPPORTÉS :
+• Excel (.xlsx, .xls)
+• CSV (séparateur point-virgule ou virgule)
+
+STRUCTURE REQUISE :
+• Matricule : Identifiant unique des points
+• AR 1, AR 2, ... : Lectures arrière
+• AV 1, AV 2, ... : Lectures avant correspondantes
+• DIST 1, DIST 2, ... : Distances (optionnel)
+
+EXEMPLE :
+Matricule | AR 1   | AV 1   | DIST 1
+P001      | 1.234  | 1.567  | 125.5
+P002      | 1.567  | 1.890  | 147.2
+        """
+        messagebox.showinfo("Aide - Import de fichiers", help_text.strip())
     
     def show_config_step(self):
         """Étape 2: Configuration des paramètres."""

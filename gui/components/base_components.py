@@ -8,24 +8,38 @@ from typing import Optional, Callable, List, Any
 from ..utils.theme import AppTheme
 
 class ThemedButton(ctk.CTkButton):
-    """Bouton avec thème personnalisé."""
+    """Bouton avec thème géodésique moderne."""
     
     def __init__(self, parent, text: str, variant: str = 'primary', 
-                 command: Optional[Callable] = None, **kwargs):
+                 size: str = 'medium', command: Optional[Callable] = None, **kwargs):
         
         # Récupérer les couleurs du variant
         colors = AppTheme.get_button_colors(variant)
         
-        # Configuration par défaut
+        # Tailles de boutons
+        button_heights = {
+            'small': AppTheme.SIZES['button_height_small'],
+            'medium': AppTheme.SIZES['button_height'],
+            'large': AppTheme.SIZES['button_height'] + 12
+        }
+        
+        button_fonts = {
+            'small': AppTheme.FONTS['button'],
+            'medium': AppTheme.FONTS['button'],
+            'large': AppTheme.FONTS['button_large']
+        }
+        
+        # Configuration par défaut moderne
         defaults = {
-            'height': AppTheme.SIZES['button_height'],
-            'corner_radius': AppTheme.SIZES['button_corner_radius'],
-            'font': AppTheme.FONTS['button'],
+            'height': button_heights.get(size, button_heights['medium']),
+            'corner_radius': AppTheme.SIZES['border_radius'],
+            'font': button_fonts.get(size, button_fonts['medium']),
             'fg_color': colors['fg_color'],
             'hover_color': colors['hover_color'],
             'text_color': colors['text_color'],
-            'border_width': 2 if variant == 'outline' else 0,
+            'border_width': 1 if variant in ['outline', 'glass'] else 0,
             'border_color': colors['border_color'],
+            'cursor': 'hand2',  # Curseur Windows
         }
         
         # Fusionner avec les kwargs
@@ -34,63 +48,88 @@ class ThemedButton(ctk.CTkButton):
         super().__init__(parent, text=text, command=command, **config)
 
 class ThemedLabel(ctk.CTkLabel):
-    """Label avec thème personnalisé."""
+    """Label avec thème géodésique moderne."""
     
     def __init__(self, parent, text: str, style: str = 'body', **kwargs):
         
+        # Couleurs automatiques selon le style
+        style_colors = {
+            'display': AppTheme.COLORS['primary'],
+            'title': AppTheme.COLORS['text'],
+            'heading': AppTheme.COLORS['primary'],
+            'subheading': AppTheme.COLORS['secondary'],
+            'body': AppTheme.COLORS['text'],
+            'small': AppTheme.COLORS['text_secondary'],
+            'caption': AppTheme.COLORS['text_muted'],
+        }
+        
         defaults = {
-            'font': AppTheme.FONTS[style],
-            'text_color': AppTheme.COLORS['text'],
+            'font': AppTheme.FONTS.get(style, AppTheme.FONTS['body']),
+            'text_color': style_colors.get(style, AppTheme.COLORS['text']),
         }
         
         config = {**defaults, **kwargs}
         super().__init__(parent, text=text, **config)
 
 class ThemedEntry(ctk.CTkEntry):
-    """Champ de saisie avec thème personnalisé."""
+    """Champ de saisie avec style moderne."""
     
     def __init__(self, parent, placeholder: str = "", **kwargs):
         
+        input_style = AppTheme.get_input_style()
         defaults = {
-            'height': AppTheme.SIZES['input_height'],
-            'corner_radius': AppTheme.SIZES['button_corner_radius'],
-            'font': AppTheme.FONTS['body'],
-            'fg_color': AppTheme.COLORS['surface'],
-            'border_color': AppTheme.COLORS['border'],
-            'text_color': AppTheme.COLORS['text'],
-            'placeholder_text_color': AppTheme.COLORS['text_secondary'],
+            **input_style,
+            'placeholder_text_color': AppTheme.COLORS['text_muted'],
+            'cursor': 'xterm',  # Curseur de saisie
         }
         
         config = {**defaults, **kwargs}
         super().__init__(parent, placeholder_text=placeholder, **config)
 
 class ThemedFrame(ctk.CTkFrame):
-    """Frame avec style de carte."""
+    """Frame avec style de carte moderne."""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, elevated: bool = False, glass: bool = False, **kwargs):
         
-        defaults = AppTheme.get_card_style()
+        if glass:
+            # Style glassmorphism
+            defaults = {
+                'fg_color': AppTheme.COLORS['glass_bg'],
+                'corner_radius': AppTheme.SIZES['card_radius'],
+                'border_width': 1,
+                'border_color': AppTheme.COLORS['glass_border']
+            }
+        else:
+            defaults = AppTheme.get_card_style(elevated=elevated)
+        
         config = {**defaults, **kwargs}
-        
         super().__init__(parent, **config)
 
 class ThemedProgressBar(ctk.CTkProgressBar):
-    """Barre de progression avec thème."""
+    """Barre de progression moderne avec animation."""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, variant: str = 'primary', **kwargs):
+        
+        # Couleurs selon le variant
+        progress_colors = {
+            'primary': AppTheme.COLORS['primary'],
+            'success': AppTheme.COLORS['success'],
+            'warning': AppTheme.COLORS['warning'],
+            'accent': AppTheme.COLORS['accent']
+        }
         
         defaults = {
-            'progress_color': AppTheme.COLORS['primary'],
-            'fg_color': AppTheme.COLORS['background'],
-            'corner_radius': 4,
-            'height': 8,
+            'progress_color': progress_colors.get(variant, AppTheme.COLORS['primary']),
+            'fg_color': AppTheme.COLORS['border_light'],
+            'corner_radius': AppTheme.SIZES['progress_height'] // 2,
+            'height': AppTheme.SIZES['progress_height'],
         }
         
         config = {**defaults, **kwargs}
         super().__init__(parent, **config)
 
 class StepIndicator(ctk.CTkFrame):
-    """Indicateur d'étapes pour l'assistant."""
+    """Indicateur d'étapes moderne avec design géodésique."""
     
     def __init__(self, parent, steps: List[str], current_step: int = 0):
         super().__init__(parent, fg_color='transparent')
@@ -102,45 +141,56 @@ class StepIndicator(ctk.CTkFrame):
         self.create_widgets()
     
     def create_widgets(self):
-        """Crée les widgets de l'indicateur."""
+        """Crée les widgets de l'indicateur moderne."""
         for i, step in enumerate(self.steps):
             # Frame pour chaque étape
             step_frame = ctk.CTkFrame(self, fg_color='transparent')
-            step_frame.pack(side='left', padx=AppTheme.SPACING['sm'], fill='y')
+            step_frame.pack(side='left', padx=AppTheme.SPACING['md'], fill='y')
             
-            # Cercle numéroté
+            # État de l'étape
             is_current = i == self.current_step
             is_completed = i < self.current_step
             
+            # Couleurs modernes selon l'état
             if is_completed:
                 circle_color = AppTheme.COLORS['success']
-                text_color = '#FFFFFF'
+                text_color = AppTheme.COLORS['text_on_primary']
                 circle_text = "✓"
+                border_color = AppTheme.COLORS['success']
             elif is_current:
                 circle_color = AppTheme.COLORS['primary']
-                text_color = '#FFFFFF'
+                text_color = AppTheme.COLORS['text_on_primary']
                 circle_text = str(i + 1)
+                border_color = AppTheme.COLORS['primary']
             else:
-                circle_color = AppTheme.COLORS['background']
-                text_color = AppTheme.COLORS['text_secondary']
+                circle_color = AppTheme.COLORS['surface']
+                text_color = AppTheme.COLORS['text_muted']
                 circle_text = str(i + 1)
+                border_color = AppTheme.COLORS['border']
             
-            # Cercle
+            # Cercle avec bordure moderne
             circle = ctk.CTkLabel(
                 step_frame,
                 text=circle_text,
-                width=30,
-                height=30,
+                width=36,
+                height=36,
                 fg_color=circle_color,
                 text_color=text_color,
-                font=AppTheme.FONTS['small'],
-                corner_radius=15
+                font=AppTheme.FONTS['body_medium'],
+                corner_radius=18
             )
-            circle.pack(pady=(0, AppTheme.SPACING['xs']))
+            circle.pack(pady=(0, AppTheme.SPACING['sm']))
             
-            # Label de l'étape
-            label_color = AppTheme.COLORS['text'] if is_current else AppTheme.COLORS['text_secondary']
-            font_style = 'subheading' if is_current else 'small'
+            # Label de l'étape avec meilleure hiérarchie
+            if is_current:
+                label_color = AppTheme.COLORS['primary']
+                font_style = 'body_medium'
+            elif is_completed:
+                label_color = AppTheme.COLORS['text']
+                font_style = 'small'
+            else:
+                label_color = AppTheme.COLORS['text_muted']
+                font_style = 'small'
             
             label = ThemedLabel(
                 step_frame,
@@ -152,19 +202,25 @@ class StepIndicator(ctk.CTkFrame):
             
             self.step_widgets.append((circle, label))
             
-            # Ligne de connexion (sauf pour le dernier)
+            # Ligne de connexion moderne (sauf pour le dernier)
             if i < len(self.steps) - 1:
-                line_color = AppTheme.COLORS['primary'] if is_completed else AppTheme.COLORS['border']
+                line_color = AppTheme.COLORS['primary'] if is_completed else AppTheme.COLORS['border_light']
+                line_height = 3 if is_completed else 2
+                
                 line = ctk.CTkFrame(
                     self,
-                    width=40,
-                    height=2,
-                    fg_color=line_color
+                    width=60,
+                    height=line_height,
+                    fg_color=line_color,
+                    corner_radius=line_height//2
                 )
-                line.pack(side='left', padx=AppTheme.SPACING['xs'], pady=(15, 0))
+                line.pack(side='left', padx=AppTheme.SPACING['sm'], pady=(18, 0))
     
     def update_step(self, new_step: int):
-        """Met à jour l'étape courante."""
+        """Met à jour l'étape courante avec animation."""
+        if new_step == self.current_step:
+            return
+            
         self.current_step = new_step
         
         # Détruire et recréer les widgets
@@ -175,37 +231,69 @@ class StepIndicator(ctk.CTkFrame):
         self.create_widgets()
 
 class StatusBar(ctk.CTkFrame):
-    """Barre d'état en bas de l'application."""
+    """Barre d'état moderne avec indicateurs visuels."""
     
     def __init__(self, parent):
         super().__init__(
             parent,
-            height=30,
-            fg_color=AppTheme.COLORS['background'],
-            corner_radius=0
+            height=AppTheme.SIZES['statusbar_height'],
+            fg_color=AppTheme.COLORS['surface_elevated'],
+            corner_radius=0,
+            border_width=1,
+            border_color=AppTheme.COLORS['border_light']
         )
+        
+        # Frame pour les éléments de gauche
+        left_frame = ctk.CTkFrame(self, fg_color='transparent')
+        left_frame.pack(side='left', fill='both', padx=AppTheme.SPACING['md'])
+        
+        # Indicateur de statut avec couleur
+        self.status_indicator = ctk.CTkLabel(
+            left_frame,
+            text="●",
+            width=12,
+            font=AppTheme.FONTS['caption'],
+            text_color=AppTheme.COLORS['success']
+        )
+        self.status_indicator.pack(side='left', pady=AppTheme.SPACING['xs'])
         
         # Label de statut
         self.status_label = ThemedLabel(
-            self,
+            left_frame,
             text="Prêt",
-            style='small',
+            style='caption',
             text_color=AppTheme.COLORS['text_secondary']
         )
-        self.status_label.pack(side='left', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
+        self.status_label.pack(side='left', padx=(AppTheme.SPACING['xs'], 0), pady=AppTheme.SPACING['xs'])
         
-        # Label de version (à droite)
+        # Frame pour les éléments de droite
+        right_frame = ctk.CTkFrame(self, fg_color='transparent')
+        right_frame.pack(side='right', fill='both', padx=AppTheme.SPACING['md'])
+        
+        # Label de version
         self.version_label = ThemedLabel(
-            self,
-            text="v1.0",
-            style='small',
-            text_color=AppTheme.COLORS['text_secondary']
+            right_frame,
+            text="Compensation Altimétrique v2.0",
+            style='caption',
+            text_color=AppTheme.COLORS['text_muted']
         )
-        self.version_label.pack(side='right', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
+        self.version_label.pack(side='right', pady=AppTheme.SPACING['xs'])
     
-    def set_status(self, message: str):
-        """Met à jour le message de statut."""
+    def set_status(self, message: str, status_type: str = 'info'):
+        """Met à jour le message de statut avec type."""
         self.status_label.configure(text=message)
+        
+        # Couleurs selon le type
+        status_colors = {
+            'success': AppTheme.COLORS['success'],
+            'warning': AppTheme.COLORS['warning'], 
+            'error': AppTheme.COLORS['error'],
+            'info': AppTheme.COLORS['primary'],
+            'idle': AppTheme.COLORS['text_muted']
+        }
+        
+        color = status_colors.get(status_type, AppTheme.COLORS['primary'])
+        self.status_indicator.configure(text_color=color)
 
 class FileDropFrame(ThemedFrame):
     """Zone de glisser-déposer pour les fichiers."""
@@ -252,3 +340,177 @@ class FileDropFrame(ThemedFrame):
             text=f"✅ Fichier sélectionné:\\n{filename}",
             text_color=AppTheme.COLORS['success']
         )
+
+class ModernCard(ThemedFrame):
+    """Carte moderne avec en-tête et contenu."""
+    
+    def __init__(self, parent, title: str = "", icon: str = "", **kwargs):
+        super().__init__(parent, elevated=True, **kwargs)
+        
+        self.title = title
+        self.icon = icon
+        
+        # Padding interne
+        self.configure(
+            padx=AppTheme.SIZES['card_padding'],
+            pady=AppTheme.SIZES['card_padding']
+        )
+        
+        # En-tête si titre fourni
+        if title:
+            self.header = self._create_header()
+            
+        # Container pour le contenu
+        self.content_frame = ctk.CTkFrame(self, fg_color='transparent')
+        self.content_frame.pack(fill='both', expand=True, pady=(AppTheme.SPACING['md'], 0) if title else 0)
+    
+    def _create_header(self):
+        """Crée l'en-tête de la carte."""
+        header_frame = ctk.CTkFrame(self, fg_color='transparent')
+        header_frame.pack(fill='x', pady=(0, AppTheme.SPACING['md']))
+        
+        # Icône + titre
+        title_frame = ctk.CTkFrame(header_frame, fg_color='transparent')
+        title_frame.pack(side='left', fill='x', expand=True)
+        
+        if self.icon:
+            icon_label = ThemedLabel(
+                title_frame,
+                text=self.icon,
+                style='subheading',
+                text_color=AppTheme.COLORS['primary']
+            )
+            icon_label.pack(side='left')
+        
+        title_label = ThemedLabel(
+            title_frame,
+            text=self.title,
+            style='subheading',
+            text_color=AppTheme.COLORS['text']
+        )
+        title_label.pack(side='left', padx=(AppTheme.SPACING['sm'], 0) if self.icon else 0)
+        
+        return header_frame
+    
+    def add_content(self, widget):
+        """Ajoute du contenu à la carte."""
+        widget.pack(in_=self.content_frame, fill='both', expand=True)
+
+class MetricCard(ModernCard):
+    """Carte pour afficher une métrique avec valeur et description."""
+    
+    def __init__(self, parent, title: str, value: str, description: str = "", 
+                 icon: str = "", variant: str = 'primary', **kwargs):
+        super().__init__(parent, title=title, icon=icon, **kwargs)
+        
+        # Couleurs selon le variant
+        variant_colors = {
+            'primary': AppTheme.COLORS['primary'],
+            'success': AppTheme.COLORS['success'],
+            'warning': AppTheme.COLORS['warning'],
+            'error': AppTheme.COLORS['error'],
+            'accent': AppTheme.COLORS['accent']
+        }
+        
+        color = variant_colors.get(variant, AppTheme.COLORS['primary'])
+        
+        # Valeur principale
+        value_label = ThemedLabel(
+            self.content_frame,
+            text=value,
+            style='display',
+            text_color=color
+        )
+        value_label.pack(pady=(AppTheme.SPACING['sm'], 0))
+        
+        # Description si fournie
+        if description:
+            desc_label = ThemedLabel(
+                self.content_frame,
+                text=description,
+                style='small',
+                text_color=AppTheme.COLORS['text_secondary']
+            )
+            desc_label.pack(pady=(AppTheme.SPACING['xs'], 0))
+
+class NotificationBanner(ctk.CTkFrame):
+    """Bannière de notification moderne."""
+    
+    def __init__(self, parent, message: str, notification_type: str = 'info', 
+                 dismissible: bool = True, **kwargs):
+        
+        # Couleurs selon le type
+        type_styles = {
+            'success': {
+                'bg': AppTheme.COLORS['success_light'],
+                'border': AppTheme.COLORS['success'],
+                'text': AppTheme.COLORS['success'],
+                'icon': '✅'
+            },
+            'warning': {
+                'bg': AppTheme.COLORS['warning_light'],
+                'border': AppTheme.COLORS['warning'],
+                'text': AppTheme.COLORS['warning'],
+                'icon': '⚠️'
+            },
+            'error': {
+                'bg': AppTheme.COLORS['error_light'],
+                'border': AppTheme.COLORS['error'],
+                'text': AppTheme.COLORS['error'],
+                'icon': '❌'
+            },
+            'info': {
+                'bg': AppTheme.COLORS['info_light'],
+                'border': AppTheme.COLORS['info'],
+                'text': AppTheme.COLORS['info'],
+                'icon': 'ℹ️'
+            }
+        }
+        
+        style = type_styles.get(notification_type, type_styles['info'])
+        
+        super().__init__(
+            parent,
+            fg_color=style['bg'],
+            border_width=1,
+            border_color=style['border'],
+            corner_radius=AppTheme.SIZES['border_radius'],
+            **kwargs
+        )
+        
+        # Frame interne avec padding
+        inner_frame = ctk.CTkFrame(self, fg_color='transparent')
+        inner_frame.pack(fill='both', expand=True, padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
+        
+        # Icône
+        icon_label = ThemedLabel(
+            inner_frame,
+            text=style['icon'],
+            style='body',
+        )
+        icon_label.pack(side='left', padx=(0, AppTheme.SPACING['sm']))
+        
+        # Message
+        message_label = ThemedLabel(
+            inner_frame,
+            text=message,
+            style='body',
+            text_color=style['text']
+        )
+        message_label.pack(side='left', fill='x', expand=True)
+        
+        # Bouton de fermeture
+        if dismissible:
+            close_button = ThemedButton(
+                inner_frame,
+                text="×",
+                variant='ghost',
+                size='small',
+                width=24,
+                command=self.dismiss
+            )
+            close_button.pack(side='right')
+    
+    def dismiss(self):
+        """Ferme la notification."""
+        self.destroy()
