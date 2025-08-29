@@ -17,6 +17,10 @@ from .base_components import (
     ThemedButton, ThemedLabel, ThemedFrame, StatusCard, 
     ProgressCard, ProjectCard, ThemedEntry
 )
+from .advanced_visualizations import InteractiveVisualizationWindow
+from .comparison_mode import ComparisonModeWindow
+from .advanced_settings import AdvancedSettingsWindow
+from .extended_project_management import ExtendedProjectManagerWindow
 from ..utils.theme import AppTheme
 
 
@@ -228,6 +232,55 @@ class ModernDashboard(ThemedFrame):
             command=self.open_existing_project
         )
         open_project_card.grid(row=0, column=2, padx=(15, 0), sticky='ew')
+        
+        # Deuxième ligne d'actions - Fonctionnalités Phase 2
+        actions_row2 = ctk.CTkFrame(actions_frame, fg_color='transparent')
+        actions_row2.grid(row=1, column=0, columnspan=3, sticky='ew', pady=(15, 0))
+        actions_row2.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        
+        # Action 4: Visualisations avancées
+        viz_card = self.create_action_card(
+            actions_row2,
+            title="Visualisations",
+            description="Graphiques interactifs et analyses",
+            icon="📊",
+            color=AppTheme.COLORS['accent'],
+            command=self.open_advanced_visualizations
+        )
+        viz_card.grid(row=0, column=0, padx=(0, 10), sticky='ew')
+        
+        # Action 5: Mode comparaison
+        compare_card = self.create_action_card(
+            actions_row2,
+            title="Comparaison",
+            description="Comparer plusieurs projets",
+            icon="⚖️",
+            color=AppTheme.COLORS['secondary'],
+            command=self.open_comparison_mode
+        )
+        compare_card.grid(row=0, column=1, padx=5, sticky='ew')
+        
+        # Action 6: Configuration avancée
+        settings_card = self.create_action_card(
+            actions_row2,
+            title="Configuration",
+            description="Paramètres géodésiques experts",
+            icon="⚙️",
+            color=AppTheme.COLORS['primary'],
+            command=self.open_advanced_settings
+        )
+        settings_card.grid(row=0, column=2, padx=5, sticky='ew')
+        
+        # Action 7: Gestion étendue
+        management_card = self.create_action_card(
+            actions_row2,
+            title="Gestion Étendue",
+            description="CRUD complet des projets",
+            icon="🗂️",
+            color=AppTheme.COLORS['success'],
+            command=self.open_extended_management
+        )
+        management_card.grid(row=0, column=3, padx=(10, 0), sticky='ew')
     
     def create_action_card(self, parent, title, description, icon, color, command):
         """Crée une carte d'action moderne."""
@@ -674,3 +727,46 @@ class ModernDashboard(ThemedFrame):
     def contact_support(self):
         """Contact le support."""
         messagebox.showinfo("Support", "Support technique: support@geodesie.fr")
+    
+    # Nouvelles méthodes Phase 2 - Enhancement
+    def open_advanced_visualizations(self):
+        """Ouvre les visualisations avancées."""
+        try:
+            # Ouvrir la fenêtre de visualisations avec données de démo
+            viz_window = InteractiveVisualizationWindow(self, data=self.projects_data)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir les visualisations :\n{str(e)}")
+    
+    def open_comparison_mode(self):
+        """Ouvre le mode comparaison."""
+        try:
+            if len(self.projects_data) < 2:
+                messagebox.showwarning("Comparaison", 
+                    "Au moins 2 projets sont nécessaires pour utiliser le mode comparaison.\n"
+                    "Créez d'abord quelques projets via l'assistant.")
+                return
+            
+            # Ouvrir la fenêtre de comparaison
+            comparison_window = ComparisonModeWindow(self, self.projects_data)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir le mode comparaison :\n{str(e)}")
+    
+    def open_advanced_settings(self):
+        """Ouvre la configuration avancée."""
+        try:
+            # Ouvrir la fenêtre de configuration avancée
+            settings_window = AdvancedSettingsWindow(self)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir la configuration :\n{str(e)}")
+    
+    def open_extended_management(self):
+        """Ouvre la gestion étendue des projets."""
+        try:
+            # Ouvrir la fenêtre de gestion étendue
+            management_window = ExtendedProjectManagerWindow(self)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir la gestion étendue :\n{str(e)}")
+    
+    def view_all_projects(self):
+        """Affiche tous les projets via la gestion étendue."""
+        self.open_extended_management()
