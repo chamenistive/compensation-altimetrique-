@@ -1,0 +1,67 @@
+[
+    {
+        "id": "proj_001",
+        "name": "Nivellement Autoroute A7",
+        "description": "Compensation altimétrique section Lyon-Marseille",
+        "created_date": "2025-08-27T09:30:00",
+        "modified_date": "2025-08-29T14:20:00",
+        "status": "completed",
+        "points_count": 45,
+        "precision_achieved": 1.8,
+        "file_path": "projects/a7_nivellement.xlsx",
+        "closure_error": 0.0025,
+        "processing_time_minutes": 4.2
+    },
+    {
+        "id": "proj_002",
+        "name": "Campus Universitaire",
+        "description": "Relevé topographique bâtiments principaux",
+        "created_date": "2025-08-24T10:15:00",
+        "modified_date": "2025-08-28T16:45:00",
+        "status": "in_progress",
+        "points_count": 28,
+        "precision_achieved": 2.1,
+        "file_path": "projects/campus_topo.csv",
+        "closure_error": 0.0032,
+        "processing_time_minutes": 3.8
+    },
+    {
+        "id": "proj_003",
+        "name": "Zone Industrielle Sud",
+        "description": "Implantation nouveaux équipements",
+        "created_date": "2025-08-22T14:22:00",
+        "modified_date": "2025-08-23T09:10:00",
+        "status": "draft",
+        "points_count": 15,
+        "precision_achieved": null,
+        "file_path": "projects/zone_indus.xlsx",
+        "closure_error": null,
+        "processing_time_minutes": null
+    },
+    {
+        "id": "proj_004",
+        "name": "Ligne TGV Lyon-Turin",
+        "description": "Nivellement haute précision section française",
+        "created_date": "2025-08-20T08:45:00",
+        "modified_date": "2025-08-21T17:30:00",
+        "status": "completed",
+        "points_count": 127,
+        "precision_achieved": 1.2,
+        "file_path": "projects/tgv_lyon_turin.xlsx",
+        "closure_error": 0.0018,
+        "processing_time_minutes": 8.5
+    },
+    {
+        "id": "proj_005",
+        "name": "Port de Marseille",
+        "description": "Compensation pour aménagement portuaire",
+        "created_date": "2025-08-18T11:20:00",
+        "modified_date": "2025-08-19T13:15:00",
+        "status": "completed",
+        "points_count": 67,
+        "precision_achieved": 1.9,
+        "file_path": "projects/port_marseille.csv",
+        "closure_error": 0.0023,
+        "processing_time_minutes": 5.7
+    }
+]

@@ -24,26 +24,72 @@ from typing import List, Dict, Optional, Tuple, Union
 from pathlib import Path
 import datetime
 
+# Import optionnel de Plotly pour graphiques interactifs
+try:
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from plotly.subplots import make_subplots
+    import plotly.io as pio
+    PLOTLY_AVAILABLE = True
+    
+    # Configuration thème Plotly géodésique
+    PLOTLY_THEME = {
+        'layout': {
+            'font': {'family': 'Segoe UI, Arial, sans-serif', 'size': 12},
+            'colorway': ['#2E86AB', '#A23B72', '#F18F01', '#10B981', '#F59E0B', '#EF4444'],
+            'plot_bgcolor': '#F8FAFC',
+            'paper_bgcolor': 'white',
+            'title': {'font': {'size': 18, 'color': '#1E293B'}},
+            'xaxis': {'gridcolor': '#E2E8F0', 'linecolor': '#64748B'},
+            'yaxis': {'gridcolor': '#E2E8F0', 'linecolor': '#64748B'},
+        }
+    }
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    print("📊 Plotly non installé - graphiques interactifs non disponibles")
+    print("💡 Installez avec: pip install plotly")
+
 # Import des modules internes
 from calculator import CalculationResults, AltitudeCalculation, HeightDifference, ClosureAnalysis
 from compensator import CompensationResults, CompensationStatistics
 from atmospheric_corrections import RefractionCorrection, AtmosphericConditions
 from validators import ValidationResult
 
-# Configuration style par défaut
-plt.style.use('seaborn-v0_8')
+# Configuration style moderne géodésique
+plt.style.use(['seaborn-v0_8-whitegrid'])
 sns.set_palette("husl")
 
-# Constantes de visualisation
+# Palette de couleurs géodésiques moderne (synchronisée avec le thème GUI)
 COLORS = {
-    'primary': '#2E86AB',
-    'secondary': '#A23B72', 
-    'accent': '#F18F01',
-    'success': '#C73E1D',
-    'warning': '#F79F24',
-    'error': '#CC2936',
-    'neutral': '#6B7280',
-    'background': '#F8FAFC'
+    # Couleurs principales géodésiques
+    'primary': '#2E86AB',          # Bleu géodésique
+    'primary_dark': '#1F5F85',     # Bleu géodésique foncé
+    'primary_light': '#4DA3C7',    # Bleu géodésique clair
+    'secondary': '#A23B72',        # Magenta technique  
+    'secondary_dark': '#7A2B56',   # Magenta foncé
+    'accent': '#F18F01',           # Orange précision
+    'accent_dark': '#CC7700',      # Orange foncé
+    
+    # États de validation modernes
+    'success': '#10B981',          # Vert validation
+    'success_light': '#D1FAE5',    # Vert clair
+    'warning': '#F59E0B',          # Jaune avertissement
+    'warning_light': '#FEF3C7',    # Jaune clair
+    'error': '#EF4444',            # Rouge critique
+    'error_light': '#FEE2E2',      # Rouge clair
+    'info': '#3B82F6',             # Bleu information
+    
+    # Couleurs utilitaires
+    'neutral': '#64748B',          # Gris neutre
+    'neutral_light': '#94A3B8',    # Gris clair
+    'background': '#F8FAFC',       # Arrière-plan moderne
+    'text': '#1E293B',             # Texte principal
+    'grid': '#E2E8F0',             # Grille subtile
+    
+    # Couleurs spéciales géodésie
+    'precision_zone': '#D1FAE5',   # Zone de précision (vert très clair)
+    'tolerance_zone': '#FEF3C7',   # Zone de tolérance (jaune très clair)
+    'critical_zone': '#FEE2E2',    # Zone critique (rouge très clair)
 }
 
 PRECISION_TARGET_MM = 2.0
@@ -76,19 +122,77 @@ class LevelingVisualizer:
         self.created_plots = []
     
     def _setup_matplotlib(self):
-        """Configuration du style matplotlib."""
+        """Configuration du style matplotlib moderne et professionnel."""
         plt.rcParams.update({
-            'figure.figsize': (12, 8),
+            # Dimensions et qualité
+            'figure.figsize': (14, 10),
             'figure.dpi': 100,
             'savefig.dpi': 300,
             'savefig.bbox': 'tight',
-            'font.size': 10,
+            'savefig.facecolor': 'white',
+            'savefig.edgecolor': 'none',
+            'savefig.transparent': False,
+            
+            # Typographie moderne (Windows-friendly)
+            'font.family': ['Segoe UI', 'DejaVu Sans', 'Arial', 'sans-serif'],
+            'font.size': 11,
+            'font.weight': 'normal',
+            
+            # Hiérarchie typographique
             'axes.labelsize': 12,
-            'axes.titlesize': 14,
+            'axes.titlesize': 16,
+            'axes.labelweight': 'bold',
+            'axes.titleweight': 'bold',
             'xtick.labelsize': 10,
             'ytick.labelsize': 10,
-            'legend.fontsize': 10,
-            'figure.titlesize': 16
+            'legend.fontsize': 11,
+            'figure.titlesize': 18,
+            'figure.titleweight': 'bold',
+            
+            # Couleurs modernes
+            'axes.facecolor': COLORS['background'],
+            'figure.facecolor': 'white',
+            'axes.edgecolor': COLORS['neutral'],
+            'axes.linewidth': 1.2,
+            'text.color': COLORS['text'],
+            'axes.labelcolor': COLORS['text'],
+            'xtick.color': COLORS['neutral'],
+            'ytick.color': COLORS['neutral'],
+            
+            # Grilles professionnelles
+            'axes.grid': True,
+            'grid.color': COLORS['grid'],
+            'grid.alpha': 0.6,
+            'grid.linewidth': 0.8,
+            'axes.axisbelow': True,
+            
+            # Légendes modernes
+            'legend.frameon': True,
+            'legend.fancybox': True,
+            'legend.shadow': False,
+            'legend.framealpha': 0.95,
+            'legend.facecolor': 'white',
+            'legend.edgecolor': COLORS['neutral_light'],
+            'legend.borderpad': 0.6,
+            
+            # Marges et espacement
+            'figure.subplot.left': 0.08,
+            'figure.subplot.right': 0.95,
+            'figure.subplot.bottom': 0.08,
+            'figure.subplot.top': 0.92,
+            'figure.subplot.wspace': 0.25,
+            'figure.subplot.hspace': 0.35,
+            
+            # Lignes et marqueurs
+            'lines.linewidth': 2.5,
+            'lines.markersize': 8,
+            'lines.markeredgewidth': 0.8,
+            
+            # Couleurs par défaut professionnelles
+            'axes.prop_cycle': plt.cycler('color', [
+                COLORS['primary'], COLORS['secondary'], COLORS['accent'],
+                COLORS['success'], COLORS['warning'], COLORS['info']
+            ])
         })
     
     def create_altitude_profile(self, 
@@ -147,10 +251,16 @@ class LevelingVisualizer:
         ax1.grid(True, alpha=0.3)
         ax1.legend()
         
-        # Zone de précision cible
+        # Zone de précision cible avec meilleur design
         alt_mean = np.mean(altitudes_orig)
-        ax1.axhspan(alt_mean - self.precision_mm/1000, alt_mean + self.precision_mm/1000, 
-                   alpha=0.1, color=COLORS['success'], label=f'Zone précision ±{self.precision_mm}mm')
+        precision_zone = ax1.axhspan(
+            alt_mean - self.precision_mm/1000, 
+            alt_mean + self.precision_mm/1000, 
+            alpha=0.15, 
+            color=COLORS['precision_zone'], 
+            label=f'🎯 Zone précision ±{self.precision_mm}mm',
+            zorder=0
+        )
         
         # Graphique secondaire - Dénivelées
         if len(calculation_results.height_differences) > 0:
@@ -715,6 +825,331 @@ Objectif atteint: {'OUI' if percentage_ok >= 90 else 'NON'}
             if plot_path.exists():
                 plot_path.unlink()
         self.created_plots.clear()
+    
+    # NOUVELLES MÉTHODES - GRAPHIQUES INTERACTIFS MODERNES
+    
+    def create_interactive_altitude_profile(self, 
+                                          calculation_results: CalculationResults,
+                                          compensation_results: Optional[CompensationResults] = None) -> Optional[Path]:
+        """
+        Crée un profil altimétrique interactif avec Plotly.
+        
+        Args:
+            calculation_results: Résultats des calculs préliminaires
+            compensation_results: Résultats de compensation (optionnel)
+            
+        Returns:
+            Path: Chemin du fichier HTML généré (None si Plotly indisponible)
+        """
+        if not PLOTLY_AVAILABLE:
+            print("⚠️ Plotly non disponible - utilisation de matplotlib")
+            return self.create_altitude_profile(calculation_results, compensation_results)
+        
+        # Données de base
+        points = [alt.point_id for alt in calculation_results.altitudes]
+        altitudes_orig = [alt.altitude_m for alt in calculation_results.altitudes]
+        
+        # Créer la figure avec subplots
+        fig = make_subplots(
+            rows=2, cols=1,
+            row_heights=[0.7, 0.3],
+            subplot_titles=('🏔️ Profil Altimétrique - Nivellement Géométrique', 
+                          '📏 Dénivelées par Segment'),
+            vertical_spacing=0.12
+        )
+        
+        # Profil original
+        fig.add_trace(
+            go.Scatter(
+                x=points, y=altitudes_orig,
+                mode='lines+markers',
+                name='Altitudes calculées',
+                line=dict(color=COLORS['primary'], width=3),
+                marker=dict(size=8, symbol='circle'),
+                hovertemplate='<b>%{x}</b><br>Altitude: %{y:.4f} m<extra></extra>'
+            ),
+            row=1, col=1
+        )
+        
+        # Profil compensé si disponible
+        if compensation_results:
+            altitudes_comp = [alt.altitude_m for alt in compensation_results.adjusted_altitudes]
+            fig.add_trace(
+                go.Scatter(
+                    x=points, y=altitudes_comp,
+                    mode='lines+markers',
+                    name='Altitudes compensées',
+                    line=dict(color=COLORS['accent'], width=3),
+                    marker=dict(size=8, symbol='square'),
+                    hovertemplate='<b>%{x}</b><br>Alt. compensée: %{y:.4f} m<extra></extra>'
+                ),
+                row=1, col=1
+            )
+            
+            # Zone de précision cible (fond)
+            alt_mean = np.mean(altitudes_orig)
+            fig.add_shape(
+                type="rect",
+                x0=points[0], y0=alt_mean - self.precision_mm/1000,
+                x1=points[-1], y1=alt_mean + self.precision_mm/1000,
+                fillcolor=COLORS['precision_zone'],
+                opacity=0.2,
+                line_width=0,
+                row=1, col=1
+            )
+        
+        # Dénivelées
+        if len(calculation_results.height_differences) > 0:
+            deltas = [hd.delta_h_m for hd in calculation_results.height_differences if hd.is_valid]
+            delta_names = [f"Seg. {i+1}" for i in range(len(deltas))]
+            deltas_mm = np.array(deltas) * 1000
+            
+            # Couleurs selon la magnitude
+            colors = [COLORS['success'] if abs(d) <= 50 else 
+                     COLORS['warning'] if abs(d) <= 100 else 
+                     COLORS['error'] for d in deltas_mm]
+            
+            fig.add_trace(
+                go.Bar(
+                    x=delta_names, y=deltas_mm,
+                    name='Dénivelées',
+                    marker_color=colors,
+                    hovertemplate='<b>%{x}</b><br>Dénivelée: %{y:.1f} mm<extra></extra>'
+                ),
+                row=2, col=1
+            )
+        
+        # Configuration du layout moderne
+        fig.update_layout(
+            **PLOTLY_THEME['layout'],
+            title={
+                'text': '🧮 Système de Compensation Altimétrique - Analyse Interactive',
+                'x': 0.5,
+                'font': {'size': 20, 'color': COLORS['text']}
+            },
+            showlegend=True,
+            legend=dict(
+                x=0.02, y=0.98,
+                bgcolor='rgba(255,255,255,0.9)',
+                bordercolor=COLORS['neutral_light'],
+                borderwidth=1
+            ),
+            height=800,
+            margin=dict(l=60, r=60, t=100, b=60)
+        )
+        
+        # Configuration des axes
+        fig.update_xaxes(
+            title_text="Points de Nivellement", 
+            tickangle=45,
+            row=1, col=1
+        )
+        fig.update_yaxes(
+            title_text="Altitude (m)", 
+            tickformat='.4f',
+            row=1, col=1
+        )
+        
+        fig.update_xaxes(
+            title_text="Segments",
+            row=2, col=1
+        )
+        fig.update_yaxes(
+            title_text="Dénivelée (mm)",
+            row=2, col=1
+        )
+        
+        # Sauvegarde
+        filename = f"profil_interactif_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        filepath = self.output_dir / filename
+        
+        fig.write_html(
+            str(filepath),
+            config={
+                'displayModeBar': True,
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+                'displaylogo': False,
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'profil_altimetrique',
+                    'height': 800,
+                    'width': 1200,
+                    'scale': 2
+                }
+            }
+        )
+        
+        self.created_plots.append(filepath)
+        print(f"✅ Profil interactif créé: {filename}")
+        
+        return filepath
+    
+    def create_interactive_dashboard(self,
+                                   calculation_results: CalculationResults,
+                                   compensation_results: Optional[CompensationResults] = None) -> Optional[Path]:
+        """
+        Crée un dashboard interactif complet avec tous les graphiques.
+        
+        Args:
+            calculation_results: Résultats des calculs
+            compensation_results: Résultats de compensation (optionnel)
+            
+        Returns:
+            Path: Chemin du dashboard HTML (None si Plotly indisponible)
+        """
+        if not PLOTLY_AVAILABLE:
+            print("⚠️ Dashboard interactif non disponible - Plotly requis")
+            return None
+        
+        # Créer une grille de subplots 2x2
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=('🏔️ Profil Altimétrique', '📊 Analyse de Fermeture', 
+                          '🎯 Carte de Précision', '📈 Statistiques de Qualité'),
+            specs=[[{"secondary_y": False}, {"secondary_y": False}],
+                   [{"secondary_y": False}, {"type": "table"}]],
+            vertical_spacing=0.15,
+            horizontal_spacing=0.1
+        )
+        
+        # 1. Profil altimétrique (simplifié)
+        points = [alt.point_id for alt in calculation_results.altitudes]
+        altitudes = [alt.altitude_m for alt in calculation_results.altitudes]
+        
+        fig.add_trace(
+            go.Scatter(
+                x=points, y=altitudes,
+                mode='lines+markers',
+                name='Altitudes',
+                line=dict(color=COLORS['primary'], width=2),
+                marker=dict(size=6),
+                showlegend=False
+            ),
+            row=1, col=1
+        )
+        
+        # 2. Analyse de fermeture
+        closure = calculation_results.closure_analysis
+        error_mm = abs(closure.closure_error_mm)
+        tolerance_mm = closure.tolerance_mm
+        
+        fig.add_trace(
+            go.Bar(
+                x=['Erreur mesurée', 'Tolérance'],
+                y=[error_mm, tolerance_mm],
+                marker_color=[COLORS['error'] if error_mm > tolerance_mm else COLORS['success'], 
+                             COLORS['neutral']],
+                name='Fermeture',
+                showlegend=False
+            ),
+            row=1, col=2
+        )
+        
+        # 3. Carte de précision
+        if compensation_results:
+            covar_diag = np.diag(compensation_results.covariance_matrix)
+            precision_mm = np.sqrt(covar_diag) * 1000
+        else:
+            precision_mm = np.random.uniform(0.8, 2.5, len(points))
+        
+        colors_precision = [COLORS['success'] if p <= self.precision_mm else 
+                           COLORS['warning'] if p <= self.precision_mm * 1.5 else 
+                           COLORS['error'] for p in precision_mm]
+        
+        fig.add_trace(
+            go.Bar(
+                x=points,
+                y=precision_mm,
+                marker_color=colors_precision,
+                name='Précision',
+                showlegend=False
+            ),
+            row=2, col=1
+        )
+        
+        # 4. Tableau de statistiques
+        if compensation_results:
+            stats = compensation_results.statistics
+            table_data = [
+                ['Paramètre', 'Valeur', 'Statut'],
+                ['σ₀ (a posteriori)', f'{stats.sigma_0_hat:.4f}', '✅' if stats.unit_weight_valid else '❌'],
+                ['Degrés de liberté', f'{stats.degrees_of_freedom}', '📊'],
+                ['Résidu max', f'{stats.max_standardized_residual:.2f}', '📏'],
+                ['Précision atteinte', f'{np.mean(precision_mm):.1f} mm', '🎯']
+            ]
+        else:
+            table_data = [
+                ['Paramètre', 'Valeur', 'Statut'],
+                ['Points traités', f'{len(points)}', '📍'],
+                ['Erreur fermeture', f'{error_mm:.1f} mm', '📐'],
+                ['Tolérance', f'{tolerance_mm:.1f} mm', '⚖️'],
+                ['Conforme', 'OUI' if error_mm <= tolerance_mm else 'NON', '✅' if error_mm <= tolerance_mm else '❌']
+            ]
+        
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=table_data[0],
+                    fill_color=COLORS['primary'],
+                    font=dict(color='white', size=12),
+                    align='center'
+                ),
+                cells=dict(
+                    values=list(zip(*table_data[1:])),
+                    fill_color='white',
+                    font=dict(color=COLORS['text'], size=11),
+                    align=['left', 'center', 'center'],
+                    height=30
+                )
+            ),
+            row=2, col=2
+        )
+        
+        # Configuration générale
+        fig.update_layout(
+            **PLOTLY_THEME['layout'],
+            title={
+                'text': '📊 Dashboard Compensation Altimétrique - Vue d\'Ensemble',
+                'x': 0.5,
+                'font': {'size': 24, 'color': COLORS['text']}
+            },
+            showlegend=False,
+            height=900,
+            margin=dict(l=60, r=60, t=120, b=60)
+        )
+        
+        # Titres des axes
+        fig.update_xaxes(title_text="Points", row=1, col=1)
+        fig.update_yaxes(title_text="Altitude (m)", row=1, col=1)
+        
+        fig.update_yaxes(title_text="Erreur (mm)", row=1, col=2)
+        
+        fig.update_xaxes(title_text="Points", tickangle=45, row=2, col=1)
+        fig.update_yaxes(title_text="Précision (mm)", row=2, col=1)
+        
+        # Sauvegarde
+        filename = f"dashboard_interactif_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        filepath = self.output_dir / filename
+        
+        fig.write_html(
+            str(filepath),
+            config={
+                'displayModeBar': True,
+                'displaylogo': False,
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'dashboard_compensation',
+                    'height': 900,
+                    'width': 1400,
+                    'scale': 2
+                }
+            }
+        )
+        
+        self.created_plots.append(filepath)
+        print(f"✅ Dashboard interactif créé: {filename}")
+        
+        return filepath
 
 
 

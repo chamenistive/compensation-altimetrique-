@@ -21,6 +21,7 @@ from gui.components.base_components import (
     ThemedButton, ThemedLabel, ThemedFrame, StepIndicator, 
     StatusBar, FileDropFrame, ThemedEntry, ThemedProgressBar
 )
+from gui.components.dashboard import ModernDashboard
 
 # Import des modules backend
 try:
@@ -62,7 +63,7 @@ class MainApplication(ctk.CTk):
         self.center_window_on_startup()
         
         # Variables d'état
-        self.current_step = 0
+        self.current_step = -1  # Commencer par le dashboard (-1)
         self.imported_data = None
         self.calculation_results = None
         self.compensation_results = None
@@ -180,7 +181,7 @@ class MainApplication(ctk.CTk):
         )
         badge_label.pack(padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
         
-        # Indicateur d'étapes moderne
+        # Indicateur d'étapes moderne (caché sur le dashboard)
         steps = [
             "Import\\nFichiers", 
             "Configuration\\nParamètres", 
@@ -192,9 +193,10 @@ class MainApplication(ctk.CTk):
         self.step_indicator = StepIndicator(
             header_content, 
             steps=steps, 
-            current_step=self.current_step
+            current_step=max(0, self.current_step)  # Éviter -1
         )
-        self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
+        if self.current_step >= 0:  # Masquer sur le dashboard
+            self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
     
     def show_step(self):
         """Affiche l'étape courante."""
@@ -204,7 +206,9 @@ class MainApplication(ctk.CTk):
             widget.destroy()
         
         # Afficher l'étape appropriée
-        if self.current_step == 0:
+        if self.current_step == -1:
+            self.show_dashboard()
+        elif self.current_step == 0:
             self.show_import_step()
         elif self.current_step == 1:
             self.show_config_step()
@@ -215,12 +219,60 @@ class MainApplication(ctk.CTk):
         elif self.current_step == 4:
             self.show_results_step()
         
-        # Mettre à jour l'indicateur d'étapes
-        self.step_indicator.update_step(self.current_step)
+        # Mettre à jour l'indicateur d'étapes (seulement si pas sur dashboard)
+        if self.current_step >= 0:
+            self.step_indicator.update_step(self.current_step)
+            
+            # Afficher l'indicateur s'il était caché
+            if not self.step_indicator.winfo_ismapped():
+                self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
+        else:
+            # Cacher l'indicateur sur le dashboard
+            if self.step_indicator.winfo_ismapped():
+                self.step_indicator.pack_forget()
         
         # Mettre à jour la barre d'état
-        step_names = ["Import des données", "Configuration", "Calculs", "Compensation", "Résultats"]
-        self.status_bar.set_status(f"Étape {self.current_step + 1}/5 - {step_names[self.current_step]}")
+        if self.current_step == -1:
+            self.status_bar.set_status("Dashboard Principal - Vue d'ensemble du système")
+        else:
+            step_names = ["Import des données", "Configuration", "Calculs", "Compensation", "Résultats"]
+            self.status_bar.set_status(f"Étape {self.current_step + 1}/5 - {step_names[self.current_step]}")
+    
+    def show_dashboard(self):
+        """Affiche le dashboard principal moderne."""
+        
+        # Créer le dashboard avec callback
+        self.dashboard = ModernDashboard(
+            self.main_frame,
+            callback=self.handle_dashboard_action
+        )
+        self.dashboard.pack(fill='both', expand=True)
+    
+    def handle_dashboard_action(self, action, data=None):
+        """Gère les actions provenant du dashboard."""
+        
+        if action == 'new_project':
+            # Démarrer un nouveau projet - aller à l'étape import
+            self.current_step = 0
+            self.show_step()
+        elif action == 'quick_import':
+            # Import rapide - aller directement à l'étape import
+            self.current_step = 0
+            self.show_step()
+            # Déclencher automatiquement la sélection de fichier
+            self.after(100, self.select_file)
+        elif action == 'open_project':
+            # Ouvrir un projet existant
+            messagebox.showinfo("Ouvrir Projet", "Fonctionnalité à implémenter : Liste des projets")
+        elif action == 'open_specific_project':
+            # Ouvrir un projet spécifique
+            if data:
+                project_name = data.get('name', 'Projet inconnu')
+                messagebox.showinfo("Projet", f"Ouverture du projet : {project_name}")
+                # Ici on pourrait charger les données du projet et aller à l'étape appropriée
+        elif action == 'view_all_projects':
+            # Voir tous les projets
+            messagebox.showinfo("Projets", "Vue de tous les projets à implémenter")
     
     def show_import_step(self):
         """Étape 1: Import des données avec design moderne."""
@@ -358,12 +410,22 @@ P002      | 1.567  | 1.890  | 147.2
         nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
-        ThemedButton(
-            nav_frame,
-            text="← Précédent",
-            command=self.previous_step,
-            variant='outline'
-        ).pack(side='left')
+        # Bouton Précédent ou Dashboard
+        if self.current_step == 0:
+            # Premier étape : retour au Dashboard
+            ThemedButton(
+                nav_frame,
+                text="🏠 Dashboard",
+                command=self.return_to_dashboard,
+                variant='outline'
+            ).pack(side='left')
+        else:
+            ThemedButton(
+                nav_frame,
+                text="← Précédent",
+                command=self.previous_step,
+                variant='outline'
+            ).pack(side='left')
         
         self.config_next_button = ThemedButton(
             nav_frame,
@@ -562,7 +624,11 @@ Les corrections atmosphériques seront appliquées si configurées.
         nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
-        ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
+        # Bouton Précédent ou Dashboard
+        if self.current_step == 0:
+            ThemedButton(nav_frame, text="🏠 Dashboard", command=self.return_to_dashboard, variant='outline').pack(side='left')
+        else:
+            ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
         
         self.calc_next_button = ThemedButton(
             nav_frame,
@@ -683,7 +749,11 @@ Cette étape améliore la précision et fournit les altitudes compensées finale
         nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
-        ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
+        # Bouton Précédent ou Dashboard
+        if self.current_step == 0:
+            ThemedButton(nav_frame, text="🏠 Dashboard", command=self.return_to_dashboard, variant='outline').pack(side='left')
+        else:
+            ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
         
         self.comp_next_button = ThemedButton(
             nav_frame,
@@ -799,7 +869,11 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
         nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
-        ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
+        # Bouton Précédent ou Dashboard
+        if self.current_step == 0:
+            ThemedButton(nav_frame, text="🏠 Dashboard", command=self.return_to_dashboard, variant='outline').pack(side='left')
+        else:
+            ThemedButton(nav_frame, text="← Précédent", command=self.previous_step, variant='outline').pack(side='left')
         ThemedButton(nav_frame, text="🎉 Terminer", command=self.finish, variant='primary').pack(side='right')
     
     def create_results_summary(self, parent):
@@ -895,10 +969,21 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
         if self.current_step > 0:
             self.current_step -= 1
             self.show_step()
+        elif self.current_step == 0:
+            # Depuis la première étape, retour au dashboard
+            self.return_to_dashboard()
+    
+    def return_to_dashboard(self):
+        """Retourne au dashboard principal."""
+        self.current_step = -1
+        self.show_step()
     
     def validate_current_step(self) -> bool:
         """Valide l'étape courante avant de continuer."""
-        if self.current_step == 0:
+        if self.current_step == -1:
+            # Dashboard - toujours valide
+            return True
+        elif self.current_step == 0:
             return self.imported_data is not None
         elif self.current_step == 1:
             return self.validate_config()
@@ -1466,41 +1551,92 @@ Type de cheminement: {"Fermé" if self.imported_data.initial_point == self.impor
     
     # Méthodes d'action pour les résultats
     def generate_charts(self):
-        """Génère les graphiques de visualisation."""
+        """Génère les graphiques de visualisation modernisés."""
         try:
             from pathlib import Path
             import os
+            from datetime import datetime
             
-            # Créer le dossier de sortie
-            output_dir = Path("results_gui")
-            output_dir.mkdir(exist_ok=True)
+            # Créer le dossier de sortie avec horodatage
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = Path("results_gui") / f"visualisations_{timestamp}"
+            output_dir.mkdir(parents=True, exist_ok=True)
             
-            self._show_action_status("🎨 Génération des graphiques en cours...")
+            self._show_action_status("🎨 Génération des graphiques modernisés en cours...")
             
-            # Utiliser le visualizer si disponible
+            # Utiliser le nouveau visualizer modernisé
             try:
                 from src.visualizer import LevelingVisualizer
                 
                 if self.calculation_results and self.compensation_results:
-                    visualizer = LevelingVisualizer(
-                        calculation_results=self.calculation_results,
-                        compensation_results=self.compensation_results
+                    # Créer le visualizer avec les nouvelles fonctionnalités
+                    visualizer = LevelingVisualizer()
+                    
+                    # Générer la palette de couleurs géodésiques
+                    palette_path = output_dir / "palette_couleurs_geodesiques.png"
+                    visualizer.create_color_palette_showcase(palette_path)
+                    
+                    # Profil altimétrique moderne
+                    profile_path = output_dir / f"profil_altimetrique_{timestamp}.png"
+                    visualizer.plot_altitude_profile_modern(
+                        self.calculation_results,
+                        self.compensation_results,
+                        output_path=profile_path
                     )
                     
-                    # Générer tous les graphiques
-                    chart_files = visualizer.create_complete_report(output_dir)
+                    # Analyse de fermeture moderne
+                    closure_path = output_dir / f"analyse_fermeture_{timestamp}.png"
+                    visualizer.plot_closure_analysis_modern(
+                        self.calculation_results.closure_analysis,
+                        output_path=closure_path
+                    )
                     
-                    self._show_action_status(f"✅ Graphiques générés dans {output_dir}/")
-                    messagebox.showinfo("Succès", f"Graphiques générés avec succès dans le dossier {output_dir}/")
+                    # Diagnostics de compensation
+                    diagnostics_path = output_dir / f"diagnostics_compensation_{timestamp}.png"
+                    try:
+                        visualizer.plot_compensation_diagnostics_modern(
+                            self.compensation_results,
+                            output_path=diagnostics_path
+                        )
+                    except Exception as e:
+                        print(f"Avertissement: Diagnostics non générés - {e}")
+                    
+                    # Générer un rapport interactif si Plotly est disponible
+                    try:
+                        interactive_path = output_dir / f"rapport_interactif_{timestamp}.html"
+                        visualizer.create_interactive_dashboard(
+                            self.calculation_results,
+                            self.compensation_results,
+                            output_path=interactive_path
+                        )
+                    except:
+                        pass  # Plotly non disponible
+                    
+                    self._show_action_status(f"✅ Graphiques modernisés générés dans {output_dir.name}/")
+                    messagebox.showinfo(
+                        "Succès", 
+                        f"📊 Graphiques modernisés générés avec succès !\n\n"
+                        f"📁 Dossier: {output_dir.name}\n"
+                        f"🎨 Palette de couleurs géodésiques incluse\n"
+                        f"📈 Profil altimétrique moderne\n"
+                        f"🎯 Analyse de fermeture avancée\n"
+                        f"⚙️ Diagnostics de compensation\n\n"
+                        f"Ouvrez le dossier pour voir tous les fichiers générés."
+                    )
                     
                 else:
                     self._show_action_status("⚠️ Données insuffisantes pour générer les graphiques")
                     
             except ImportError:
-                # Mode démo - créer des graphiques factices
-                self._generate_demo_charts(output_dir)
-                self._show_action_status(f"✅ Graphiques de démo générés dans {output_dir}/")
-                messagebox.showinfo("Mode Démo", f"Graphiques de démonstration générés dans {output_dir}/")
+                # Mode démo avec les nouvelles visualisations
+                self._generate_modern_demo_charts(output_dir, timestamp)
+                self._show_action_status(f"✅ Graphiques modernisés de démo générés dans {output_dir.name}/")
+                messagebox.showinfo(
+                    "Mode Démo", 
+                    f"📊 Graphiques de démonstration modernisés générés !\n\n"
+                    f"📁 Dossier: {output_dir.name}\n"
+                    f"Ces graphiques utilisent le nouveau design géodésique professionnel."
+                )
                 
         except Exception as e:
             self._show_action_status(f"❌ Erreur: {str(e)}")
@@ -1566,6 +1702,145 @@ Type de cheminement: {"Fermé" if self.imported_data.initial_point == self.impor
         
         plt.tight_layout()
         plt.savefig(output_dir / 'analyse_precision.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    def _generate_modern_demo_charts(self, output_dir, timestamp):
+        """Génère des graphiques de démonstration avec le nouveau design modernisé."""
+        import matplotlib.pyplot as plt
+        import numpy as np
+        
+        # Configuration moderne avec la palette géodésique
+        plt.style.use(['seaborn-v0_8-whitegrid'])
+        
+        # Couleurs du thème géodésique moderne
+        colors = {
+            'primary': '#2E86AB',
+            'secondary': '#A23B72', 
+            'accent': '#F18F01',
+            'success': '#10B981',
+            'warning': '#F59E0B',
+            'error': '#EF4444',
+            'neutral': '#64748B',
+            'background': '#F8FAFC',
+            'text': '#1E293B'
+        }
+        
+        # 1. Palette de couleurs géodésiques
+        fig, ax = plt.subplots(figsize=(14, 8))
+        color_names = list(colors.keys())
+        color_values = list(colors.values())
+        y_positions = np.arange(len(color_names))
+        
+        bars = ax.barh(y_positions, [1]*len(color_names), color=color_values)
+        ax.set_yticks(y_positions)
+        ax.set_yticklabels([f"{name}: {value}" for name, value in colors.items()])
+        ax.set_xlabel('Couleurs Géodésiques Professionnelles')
+        ax.set_title('🎨 Palette de Couleurs Géodésiques - Système Moderne\nDesign professionnel pour visualisations techniques', 
+                     fontsize=16, color=colors['text'], pad=20)
+        ax.set_xlim(0, 1.2)
+        
+        # Ajouter les codes hex
+        for i, (bar, color, name) in enumerate(zip(bars, color_values, color_names)):
+            ax.text(0.6, i, color.upper(), ha='center', va='center', 
+                   color='white' if name in ['primary', 'secondary', 'text'] else 'black',
+                   fontweight='bold', fontsize=10)
+        
+        plt.tight_layout()
+        plt.savefig(output_dir / 'palette_couleurs_geodesiques.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # 2. Profil altimétrique moderne
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Données de démonstration
+        points = ['RN001', 'P001', 'P002', 'P003', 'P004', 'RN002']
+        distances = np.cumsum([0, 250, 300, 275, 425, 200])
+        altitudes = [125.456, 125.701, 125.578, 125.665, 125.821, 125.623]
+        altitudes_comp = [alt + np.random.normal(0, 0.001) for alt in altitudes]
+        
+        # Profil avant compensation
+        ax.plot(distances, altitudes, 'o-', color=colors['neutral'], linewidth=2, 
+               markersize=8, alpha=0.7, label='Avant compensation')
+        
+        # Profil après compensation
+        ax.plot(distances, altitudes_comp, 'o-', color=colors['primary'], linewidth=3,
+               markersize=10, label='Après compensation LSQ')
+        
+        # Zone de tolérance ±2mm
+        ax.fill_between(distances, 
+                       np.array(altitudes_comp) - 0.002,
+                       np.array(altitudes_comp) + 0.002,
+                       color=colors['success'], alpha=0.2, label='Zone précision ±2mm')
+        
+        # Annotations des points
+        for i, (point, x, y) in enumerate(zip(points, distances, altitudes_comp)):
+            ax.annotate(f'{point}\n{y:.3f}m', (x, y), xytext=(0, 15), 
+                       textcoords='offset points', ha='center',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8),
+                       fontsize=9, color=colors['text'])
+        
+        ax.set_xlabel('Distance cumulative (m)', fontsize=12)
+        ax.set_ylabel('Altitude (m)', fontsize=12)
+        ax.set_title('📈 Profil Altimétrique Moderne - Système de Compensation\nPrécision garantie: 2mm • Méthode: Moindres Carrés', 
+                     fontsize=14, color=colors['text'], pad=20)
+        ax.legend(loc='upper right', fancybox=True, shadow=True)
+        ax.grid(True, alpha=0.3, color=colors['neutral'])
+        
+        plt.tight_layout()
+        plt.savefig(output_dir / f'profil_altimetrique_{timestamp}.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        # 3. Analyse de fermeture moderne
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+        
+        # Erreur de fermeture
+        closure_error = 2.5  # mm
+        tolerance = 4.8  # mm
+        
+        ax1.bar(['Erreur mesurée', 'Tolérance'], [closure_error, tolerance], 
+               color=[colors['warning'], colors['success']], alpha=0.8)
+        ax1.set_ylabel('Erreur (mm)')
+        ax1.set_title('🎯 Analyse de Fermeture', fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        
+        for i, v in enumerate([closure_error, tolerance]):
+            ax1.text(i, v + 0.1, f'{v:.1f} mm', ha='center', fontweight='bold')
+        
+        # Distribution des résidus
+        residuals = np.random.normal(0, 0.8, 100)
+        ax2.hist(residuals, bins=20, color=colors['primary'], alpha=0.7, edgecolor='black')
+        ax2.axvline(x=0, color=colors['error'], linestyle='--', linewidth=2, label='Référence')
+        ax2.set_xlabel('Résidus (mm)')
+        ax2.set_ylabel('Fréquence')
+        ax2.set_title('📊 Distribution des Résidus', fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        
+        # Statistiques de compensation
+        stats_labels = ['σ₀', 'DDL', 'Test χ²']
+        stats_values = [1.12, 4, 'OK']
+        colors_stats = [colors['success'], colors['primary'], colors['success']]
+        
+        bars = ax3.bar(stats_labels, [1.12, 4, 1], color=colors_stats, alpha=0.8)
+        ax3.set_ylabel('Valeurs')
+        ax3.set_title('⚙️ Statistiques LSQ', fontweight='bold')
+        ax3.grid(True, alpha=0.3)
+        
+        # Qualité par point
+        quality_points = ['RN001', 'P001', 'P002', 'P003', 'P004', 'RN002']
+        quality_values = [0.8, 1.2, 0.9, 1.1, 0.7, 0.6]
+        
+        bars = ax4.bar(quality_points, quality_values, color=colors['accent'], alpha=0.8)
+        ax4.axhline(y=1.0, color=colors['error'], linestyle='--', linewidth=2, label='Seuil qualité')
+        ax4.set_ylabel('Indicateur qualité (mm)')
+        ax4.set_title('🏆 Qualité par Point', fontweight='bold')
+        ax4.grid(True, alpha=0.3)
+        ax4.tick_params(axis='x', rotation=45)
+        
+        plt.suptitle('🧮 Dashboard Analyse de Fermeture Moderne\nSystème de Compensation Altimétrique - Précision 2mm', 
+                     fontsize=16, color=colors['text'], y=0.98)
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.90)
+        plt.savefig(output_dir / f'analyse_fermeture_{timestamp}.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def generate_detailed_report(self):

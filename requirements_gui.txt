@@ -7,12 +7,21 @@ customtkinter>=5.2.0
 # Gestion des images et icônes
 Pillow>=9.0.0
 
-# Dépendances existantes (backend)
-numpy>=1.20.0
-pandas>=1.3.0
-openpyxl>=3.0.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
+# === NOUVELLES DÉPENDANCES - VISUALISATIONS MODERNES ===
 
-# Pour l'exécutable final (optionnel)
+# Visualisations interactives et dashboards
+plotly>=5.17.0
+kaleido>=0.2.1          # Export d'images Plotly (PNG, PDF, SVG)
+dash>=2.14.0            # Dashboards web interactifs (optionnel)
+
+# Visualisations statiques améliorées
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Calculs scientifiques
+numpy>=1.24.0
+pandas>=2.0.0
+openpyxl>=3.0.0
+
+# Outils de développement
 pyinstaller>=5.0.0

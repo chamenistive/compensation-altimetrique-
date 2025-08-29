@@ -514,3 +514,262 @@ class NotificationBanner(ctk.CTkFrame):
     def dismiss(self):
         """Ferme la notification."""
         self.destroy()
+
+
+class StatusCard(ThemedFrame):
+    """Carte de statut pour métriques avec icône et valeur."""
+    
+    def __init__(self, parent, title: str, value: str, icon: str = "", 
+                 color: str = None, **kwargs):
+        super().__init__(parent, elevated=True, **kwargs)
+        
+        # Couleur par défaut
+        if color is None:
+            color = AppTheme.COLORS['primary']
+        
+        # Container principal
+        content_frame = ctk.CTkFrame(self, fg_color='transparent')
+        content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        # En-tête avec icône
+        header_frame = ctk.CTkFrame(content_frame, fg_color='transparent')
+        header_frame.pack(fill='x', pady=(0, 10))
+        
+        # Icône colorée
+        if icon:
+            icon_frame = ctk.CTkFrame(
+                header_frame,
+                width=40,
+                height=40,
+                corner_radius=20,
+                fg_color=color
+            )
+            icon_frame.pack(side='left')
+            icon_frame.pack_propagate(False)
+            
+            icon_label = ThemedLabel(
+                icon_frame,
+                text=icon,
+                style='subheading',
+                text_color='white'
+            )
+            icon_label.place(relx=0.5, rely=0.5, anchor='center')
+        
+        # Titre
+        title_label = ThemedLabel(
+            content_frame,
+            text=title,
+            style='small',
+            text_color=AppTheme.COLORS['text_secondary']
+        )
+        title_label.pack(anchor='w', pady=(0, 5))
+        
+        # Valeur principale
+        value_label = ThemedLabel(
+            content_frame,
+            text=value,
+            style='heading',
+            text_color=color
+        )
+        value_label.pack(anchor='w')
+
+
+class ProgressCard(ThemedFrame):
+    """Carte de progression avec barre et pourcentage."""
+    
+    def __init__(self, parent, title: str, progress: float = 0.0, 
+                 description: str = "", **kwargs):
+        super().__init__(parent, elevated=True, **kwargs)
+        
+        # Container principal
+        content_frame = ctk.CTkFrame(self, fg_color='transparent')
+        content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        # Titre
+        title_label = ThemedLabel(
+            content_frame,
+            text=title,
+            style='subheading',
+            text_color=AppTheme.COLORS['text']
+        )
+        title_label.pack(anchor='w', pady=(0, 10))
+        
+        # Barre de progression
+        self.progress_bar = ThemedProgressBar(content_frame)
+        self.progress_bar.pack(fill='x', pady=(0, 8))
+        self.progress_bar.set(progress)
+        
+        # Frame pour pourcentage et description
+        info_frame = ctk.CTkFrame(content_frame, fg_color='transparent')
+        info_frame.pack(fill='x')
+        
+        # Pourcentage
+        percent_label = ThemedLabel(
+            info_frame,
+            text=f"{progress*100:.0f}%",
+            style='body_medium',
+            text_color=AppTheme.COLORS['primary']
+        )
+        percent_label.pack(side='right')
+        
+        # Description
+        if description:
+            desc_label = ThemedLabel(
+                info_frame,
+                text=description,
+                style='small',
+                text_color=AppTheme.COLORS['text_secondary']
+            )
+            desc_label.pack(side='left')
+    
+    def update_progress(self, progress: float, description: str = None):
+        """Met à jour la progression."""
+        self.progress_bar.set(progress)
+        
+        # Mettre à jour les labels
+        for widget in self.winfo_children():
+            if isinstance(widget, ctk.CTkFrame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ctk.CTkFrame):  # info_frame
+                        for subchild in child.winfo_children():
+                            if isinstance(subchild, ThemedLabel):
+                                if "%" in subchild.cget("text"):
+                                    subchild.configure(text=f"{progress*100:.0f}%")
+                                elif description and subchild.cget("text") != description:
+                                    subchild.configure(text=description)
+
+
+class ProjectCard(ThemedFrame):
+    """Carte de projet avec informations et actions."""
+    
+    def __init__(self, parent, project_data: dict, callback=None, **kwargs):
+        super().__init__(parent, elevated=True, **kwargs)
+        
+        self.project_data = project_data
+        self.callback = callback
+        
+        # Effet hover
+        self.configure(cursor='hand2')
+        self.bind('<Button-1>', self._on_click)
+        
+        # Container principal
+        content_frame = ctk.CTkFrame(self, fg_color='transparent')
+        content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        content_frame.bind('<Button-1>', self._on_click)
+        
+        # En-tête du projet
+        header_frame = ctk.CTkFrame(content_frame, fg_color='transparent')
+        header_frame.pack(fill='x', pady=(0, 12))
+        header_frame.bind('<Button-1>', self._on_click)
+        
+        # Nom du projet
+        name_label = ThemedLabel(
+            header_frame,
+            text=project_data.get('name', 'Projet sans nom'),
+            style='subheading',
+            text_color=AppTheme.COLORS['text']
+        )
+        name_label.pack(anchor='w')
+        name_label.bind('<Button-1>', self._on_click)
+        
+        # Badge de statut
+        status = project_data.get('status', 'draft')
+        status_colors = {
+            'completed': AppTheme.COLORS['success'],
+            'in_progress': AppTheme.COLORS['warning'],
+            'draft': AppTheme.COLORS['text_muted']
+        }
+        status_texts = {
+            'completed': 'Terminé',
+            'in_progress': 'En cours', 
+            'draft': 'Brouillon'
+        }
+        
+        status_badge = ctk.CTkFrame(
+            header_frame,
+            fg_color=status_colors.get(status, AppTheme.COLORS['text_muted']),
+            corner_radius=10,
+            height=20
+        )
+        status_badge.pack(side='right')
+        
+        status_label = ThemedLabel(
+            status_badge,
+            text=status_texts.get(status, status.capitalize()),
+            style='caption',
+            text_color='white'
+        )
+        status_label.pack(padx=8, pady=2)
+        
+        # Description
+        if project_data.get('description'):
+            desc_label = ThemedLabel(
+                content_frame,
+                text=project_data['description'],
+                style='small',
+                text_color=AppTheme.COLORS['text_secondary']
+            )
+            desc_label.pack(anchor='w', pady=(0, 12))
+            desc_label.bind('<Button-1>', self._on_click)
+        
+        # Métriques du projet
+        metrics_frame = ctk.CTkFrame(content_frame, fg_color='transparent')
+        metrics_frame.pack(fill='x', pady=(0, 12))
+        metrics_frame.bind('<Button-1>', self._on_click)
+        
+        # Points traités
+        points_count = project_data.get('points_count', 0)
+        points_metric = ThemedLabel(
+            metrics_frame,
+            text=f"📍 {points_count} points",
+            style='small',
+            text_color=AppTheme.COLORS['text_secondary']
+        )
+        points_metric.pack(side='left', padx=(0, 15))
+        points_metric.bind('<Button-1>', self._on_click)
+        
+        # Précision si disponible
+        precision = project_data.get('precision_achieved')
+        if precision:
+            precision_metric = ThemedLabel(
+                metrics_frame,
+                text=f"🎯 {precision:.1f}mm",
+                style='small', 
+                text_color=AppTheme.COLORS['success']
+            )
+            precision_metric.pack(side='left')
+            precision_metric.bind('<Button-1>', self._on_click)
+        
+        # Date de modification
+        import datetime
+        try:
+            modified_date = datetime.datetime.fromisoformat(project_data.get('modified_date', ''))
+            date_str = modified_date.strftime('%d/%m/%Y')
+        except:
+            date_str = 'Date inconnue'
+        
+        date_label = ThemedLabel(
+            content_frame,
+            text=f"Modifié le {date_str}",
+            style='caption',
+            text_color=AppTheme.COLORS['text_muted']
+        )
+        date_label.pack(anchor='w')
+        date_label.bind('<Button-1>', self._on_click)
+        
+        # Effet hover sur la carte
+        self.bind('<Enter>', self._on_enter)
+        self.bind('<Leave>', self._on_leave)
+    
+    def _on_click(self, event):
+        """Gestion du clic sur la carte."""
+        if self.callback:
+            self.callback(self.project_data)
+    
+    def _on_enter(self, event):
+        """Effet hover."""
+        self.configure(fg_color=AppTheme.COLORS['background'])
+    
+    def _on_leave(self, event):
+        """Fin effet hover."""
+        self.configure(fg_color=AppTheme.COLORS['surface_elevated'])
