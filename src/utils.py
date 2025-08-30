@@ -16,10 +16,10 @@ import numpy as np
 from pathlib import Path
 from typing import Union, Optional
 
-from data_importer import DataImporter, ImportedData
-from calculator import LevelingCalculator, CalculationResults
-from compensator import LevelingCompensator, CompensationResults
-from visualizer import LevelingVisualizer
+from .data_importer import DataImporter, ImportedData
+from .calculator import LevelingCalculator, CalculationResults
+from .compensator import LevelingCompensator, CompensationResults
+from .visualizer import LevelingVisualizer
 from .exceptions import CalculationError
 
 

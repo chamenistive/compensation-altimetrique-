@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass
 
-from exceptions import FileImportError, DataValidationError
-from validators import DataStructureValidator, ValidationResult, FileValidator
+from .exceptions import FileImportError, DataValidationError
+from .validators import DataStructureValidator, ValidationResult, FileValidator
 
 
 @dataclass

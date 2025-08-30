@@ -50,10 +50,10 @@ except ImportError:
     print("💡 Installez avec: pip install plotly")
 
 # Import des modules internes
-from calculator import CalculationResults, AltitudeCalculation, HeightDifference, ClosureAnalysis
-from compensator import CompensationResults, CompensationStatistics
-from atmospheric_corrections import RefractionCorrection, AtmosphericConditions
-from validators import ValidationResult
+from .calculator import CalculationResults, AltitudeCalculation, HeightDifference, ClosureAnalysis
+from .compensator import CompensationResults, CompensationStatistics
+from .atmospheric_corrections import RefractionCorrection, AtmosphericConditions
+from .validators import ValidationResult
 
 # Configuration style moderne géodésique
 plt.style.use(['seaborn-v0_8-whitegrid'])

@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import math
 
-from exceptions import CalculationError, validate_positive_number
+from .exceptions import CalculationError, validate_positive_number
 
 
 # Constantes géodésiques

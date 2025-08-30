@@ -20,7 +20,7 @@ import re
 from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass
 
-from exceptions import (
+from .exceptions import (
     DataValidationError, FileImportError, PrecisionError, CalculationError,
     ConfigurationError, validate_positive_number, validate_precision_mm
 )

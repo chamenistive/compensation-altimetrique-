@@ -26,15 +26,15 @@ from typing import List, Dict, Tuple, Optional, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
-from exceptions import (
+from .exceptions import (
     CalculationError, PrecisionError, validate_positive_number,
     safe_divide, validate_distance_km
 )
-from validators import GeodeticValidator, PrecisionValidator, CalculationValidator
-from atmospheric_corrections import (
+from .validators import GeodeticValidator, PrecisionValidator, CalculationValidator
+from .atmospheric_corrections import (
     AtmosphericCorrector, AtmosphericConditions, create_standard_conditions
 )
-from data_importer import DataImporter
+from .data_importer import DataImporter
 
 
 class TraverseType(Enum):

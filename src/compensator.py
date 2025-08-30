@@ -31,12 +31,12 @@ import scipy.linalg as scipy_linalg
 from scipy.sparse import diags, csc_matrix
 from scipy.sparse.linalg import spsolve
 
-from exceptions import (
+from .exceptions import (
     MatrixError, CalculationError, PrecisionError,
     safe_divide, validate_positive_number
 )
-from validators import GeodeticValidator, PrecisionValidator, ValidationResult, CompensationValidator
-from calculator import CalculationResults, AltitudeCalculation
+from .validators import GeodeticValidator, PrecisionValidator, ValidationResult, CompensationValidator
+from .calculator import CalculationResults, AltitudeCalculation
 
 
 class SolutionMethod(Enum):
