@@ -91,7 +91,7 @@ class AppTheme:
         
         # Corps de texte
         'body': ('Segoe UI', 12, 'normal'),       # Texte principal
-        'body_medium': ('Segoe UI', 12, '500'),   # Texte moyen
+        'body_medium': ('Segoe UI', 12, 'bold'),   # Texte moyen
         'small': ('Segoe UI', 10, 'normal'),      # Petit texte
         'caption': ('Segoe UI', 9, 'normal'),     # Légendes
         
@@ -194,17 +194,17 @@ class AppTheme:
                 'disabled_color': cls.COLORS['text_muted']
             },
             'outline': {
-                'fg_color': 'transparent',
+                'fg_color': 'white',
                 'hover_color': cls.COLORS['background'],
                 'text_color': cls.COLORS['primary'],
                 'border_color': cls.COLORS['primary'],
                 'disabled_color': cls.COLORS['text_muted']
             },
             'ghost': {
-                'fg_color': 'transparent',
+                'fg_color': 'white',
                 'hover_color': cls.COLORS['surface_elevated'],
                 'text_color': cls.COLORS['text'],
-                'border_color': 'transparent',
+                'border_color': 'white',
                 'disabled_color': cls.COLORS['text_muted']
             },
             'glass': {

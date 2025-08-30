@@ -504,7 +504,7 @@ class NotificationBanner(ctk.CTkFrame):
             close_button = ThemedButton(
                 inner_frame,
                 text="×",
-                variant='ghost',
+                variant='white',
                 size='small',
                 width=24,
                 command=self.dismiss
