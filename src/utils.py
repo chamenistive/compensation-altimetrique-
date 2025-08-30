@@ -20,7 +20,7 @@ from data_importer import DataImporter, ImportedData
 from calculator import LevelingCalculator, CalculationResults
 from compensator import LevelingCompensator, CompensationResults
 from visualizer import LevelingVisualizer
-from exceptions import CalculationError
+from .exceptions import CalculationError
 
 
 def quick_import(filepath: Union[str, Path], **kwargs) -> ImportedData:

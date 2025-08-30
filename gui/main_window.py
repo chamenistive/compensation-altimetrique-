@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 # Ajouter le répertoire parent au path pour les imports
-current_dir = os.path.dirname(__file__)
+current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 from gui.utils.theme import AppTheme
 from gui.components.base_components import (
@@ -139,7 +140,7 @@ class MainApplication(ctk.CTk):
                          pady=(AppTheme.SPACING['lg'], AppTheme.SPACING['section']))
         
         # Container principal pour centrage
-        header_content = ctk.CTkFrame(header_frame, fg_color='transparent')
+        header_content = ctk.CTkFrame(header_frame, fg_color='white')
         header_content.pack(fill='both', expand=True, 
                            padx=AppTheme.SPACING['xl'], 
                            pady=AppTheme.SPACING['xl'])
@@ -154,7 +155,7 @@ class MainApplication(ctk.CTk):
         title_label.pack(pady=(0, AppTheme.SPACING['sm']))
         
         # Sous-titre avec badges de précision
-        subtitle_frame = ctk.CTkFrame(header_content, fg_color='transparent')
+        subtitle_frame = ctk.CTkFrame(header_content, fg_color='white')
         subtitle_frame.pack(pady=(0, AppTheme.SPACING['xl']))
         
         subtitle_label = ThemedLabel(
@@ -278,18 +279,18 @@ class MainApplication(ctk.CTk):
         """Étape 1: Import des données avec design moderne."""
         
         # Container principal avec padding moderne
-        step_container = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        step_container = ctk.CTkFrame(self.main_frame, fg_color='white')
         step_container.pack(fill='both', expand=True, padx=AppTheme.SPACING['xl'])
         
         # En-tête de l'étape avec icône moderne
         header_card = ThemedFrame(step_container, elevated=True)
         header_card.pack(fill='x', pady=(0, AppTheme.SPACING['section']))
         
-        header_content = ctk.CTkFrame(header_card, fg_color='transparent')
+        header_content = ctk.CTkFrame(header_card, fg_color='white')
         header_content.pack(fill='x', padx=AppTheme.SPACING['xl'], pady=AppTheme.SPACING['lg'])
         
         # Titre avec icône moderne
-        title_frame = ctk.CTkFrame(header_content, fg_color='transparent')
+        title_frame = ctk.CTkFrame(header_content, fg_color='white')
         title_frame.pack(fill='x')
         
         icon_label = ThemedLabel(
@@ -336,11 +337,11 @@ class MainApplication(ctk.CTk):
         self.file_info_frame = ThemedFrame(step_container)
         
         # Navigation moderne
-        nav_frame = ctk.CTkFrame(step_container, fg_color='transparent')
+        nav_frame = ctk.CTkFrame(step_container, fg_color='white')
         nav_frame.pack(side='bottom', fill='x', pady=(AppTheme.SPACING['section'], 0))
         
         # Boutons avec meilleur design
-        button_frame = ctk.CTkFrame(nav_frame, fg_color='transparent')
+        button_frame = ctk.CTkFrame(nav_frame, fg_color='white')
         button_frame.pack(side='right')
         
         self.next_button = ThemedButton(
@@ -358,7 +359,7 @@ class MainApplication(ctk.CTk):
             button_frame,
             text="? Aide",
             command=self.show_import_help,
-            variant='ghost',
+            variant='white',
             size='medium'
         )
         help_button.pack(side='right', padx=(0, AppTheme.SPACING['md']))
@@ -407,7 +408,7 @@ P002      | 1.567  | 1.890  | 147.2
         self.create_atmospheric_config(config_frame)
         
         # Boutons de navigation
-        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='white')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
         # Bouton Précédent ou Dashboard
@@ -449,7 +450,7 @@ P002      | 1.567  | 1.890  | 147.2
         ).pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
         
         # Altitude initiale
-        alt_init_frame = ctk.CTkFrame(alt_section, fg_color='transparent')
+        alt_init_frame = ctk.CTkFrame(alt_section, fg_color='white')
         alt_init_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         ThemedLabel(alt_init_frame, text="Altitude initiale (m):").pack(side='left')
@@ -461,7 +462,7 @@ P002      | 1.567  | 1.890  | 147.2
         self.initial_alt_entry.pack(side='right')
         
         # Altitude finale (optionnelle)
-        alt_final_frame = ctk.CTkFrame(alt_section, fg_color='transparent')
+        alt_final_frame = ctk.CTkFrame(alt_section, fg_color='white')
         alt_final_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         ThemedLabel(alt_final_frame, text="Altitude finale (optionnel):").pack(side='left')
@@ -483,7 +484,7 @@ P002      | 1.567  | 1.890  | 147.2
         ).pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
         
         # Précision cible
-        precision_frame = ctk.CTkFrame(precision_section, fg_color='transparent')
+        precision_frame = ctk.CTkFrame(precision_section, fg_color='white')
         precision_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         ThemedLabel(precision_frame, text="Précision cible (mm):").pack(side='left')
@@ -521,11 +522,11 @@ P002      | 1.567  | 1.890  | 147.2
         self.atm_checkbox.select()  # Activé par défaut
         
         # Frame pour les paramètres atmosphériques
-        self.atm_params_frame = ctk.CTkFrame(atm_section, fg_color='transparent')
+        self.atm_params_frame = ctk.CTkFrame(atm_section, fg_color='white')
         self.atm_params_frame.pack(fill='x', padx=AppTheme.SPACING['lg'], pady=AppTheme.SPACING['sm'])
         
         # Température
-        temp_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='transparent')
+        temp_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='white')
         temp_frame.pack(fill='x', pady=AppTheme.SPACING['xs'])
         
         ThemedLabel(temp_frame, text="Température (°C):").pack(side='left')
@@ -534,7 +535,7 @@ P002      | 1.567  | 1.890  | 147.2
         self.temp_entry.pack(side='right')
         
         # Pression
-        pressure_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='transparent')
+        pressure_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='white')
         pressure_frame.pack(fill='x', pady=AppTheme.SPACING['xs'])
         
         ThemedLabel(pressure_frame, text="Pression (hPa):").pack(side='left')
@@ -543,7 +544,7 @@ P002      | 1.567  | 1.890  | 147.2
         self.pressure_entry.pack(side='right')
         
         # Humidité
-        humidity_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='transparent')
+        humidity_frame = ctk.CTkFrame(self.atm_params_frame, fg_color='white')
         humidity_frame.pack(fill='x', pady=AppTheme.SPACING['xs'])
         
         ThemedLabel(humidity_frame, text="Humidité (%):").pack(side='left')
@@ -608,7 +609,7 @@ Les corrections atmosphériques seront appliquées si configurées.
         self.results_section.pack(fill='both', expand=True, padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['md'])
         
         # Bouton de calcul
-        calc_button_frame = ctk.CTkFrame(calc_frame, fg_color='transparent')
+        calc_button_frame = ctk.CTkFrame(calc_frame, fg_color='white')
         calc_button_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['md'])
         
         self.calc_button = ThemedButton(
@@ -621,7 +622,7 @@ Les corrections atmosphériques seront appliquées si configurées.
         self.calc_button.pack()
         
         # Boutons de navigation
-        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='white')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
         # Bouton Précédent ou Dashboard
@@ -679,7 +680,7 @@ Cette étape améliore la précision et fournit les altitudes compensées finale
         ).pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
         
         # Méthode de pondération
-        weight_frame = ctk.CTkFrame(params_section, fg_color='transparent')
+        weight_frame = ctk.CTkFrame(params_section, fg_color='white')
         weight_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         ThemedLabel(weight_frame, text="Méthode de pondération:").pack(side='left')
@@ -697,7 +698,7 @@ Cette étape améliore la précision et fournit les altitudes compensées finale
         self.weight_method.pack(side='right')
         
         # Tolérance de convergence
-        tolerance_frame = ctk.CTkFrame(params_section, fg_color='transparent')
+        tolerance_frame = ctk.CTkFrame(params_section, fg_color='white')
         tolerance_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         ThemedLabel(tolerance_frame, text="Tolérance de convergence (mm):").pack(side='left')
@@ -733,7 +734,7 @@ Cette étape améliore la précision et fournit les altitudes compensées finale
         self.comp_results_section.pack(fill='both', expand=True, padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['md'])
         
         # Bouton de compensation
-        comp_button_frame = ctk.CTkFrame(comp_frame, fg_color='transparent')
+        comp_button_frame = ctk.CTkFrame(comp_frame, fg_color='white')
         comp_button_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['md'])
         
         self.comp_button = ThemedButton(
@@ -746,7 +747,7 @@ Cette étape améliore la précision et fournit les altitudes compensées finale
         self.comp_button.pack()
         
         # Boutons de navigation
-        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='white')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
         # Bouton Précédent ou Dashboard
@@ -810,11 +811,11 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
         ).pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
         
         # Boutons d'action
-        actions_frame = ctk.CTkFrame(actions_section, fg_color='transparent')
+        actions_frame = ctk.CTkFrame(actions_section, fg_color='white')
         actions_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
         
         # Première ligne d'actions
-        actions_row1 = ctk.CTkFrame(actions_frame, fg_color='transparent')
+        actions_row1 = ctk.CTkFrame(actions_frame, fg_color='white')
         actions_row1.pack(fill='x', pady=AppTheme.SPACING['xs'])
         
         ThemedButton(
@@ -842,14 +843,14 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
         ).pack(side='left')
         
         # Deuxième ligne d'actions
-        actions_row2 = ctk.CTkFrame(actions_frame, fg_color='transparent')
+        actions_row2 = ctk.CTkFrame(actions_frame, fg_color='white')
         actions_row2.pack(fill='x', pady=AppTheme.SPACING['xs'])
         
         ThemedButton(
             actions_row2,
             text="🗂️ Ouvrir Dossier",
             command=self.open_results_folder,
-            variant='ghost',
+            variant='white',
             width=180
         ).pack(side='left', padx=(0, AppTheme.SPACING['sm']))
         
@@ -857,7 +858,7 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
             actions_row2,
             text="🔄 Nouveau Projet",
             command=self.new_project,
-            variant='ghost',
+            variant='white',
             width=180
         ).pack(side='left')
         
@@ -866,7 +867,7 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
         self.results_status_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['md'])
         
         # Boutons de navigation
-        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
+        nav_frame = ctk.CTkFrame(self.main_frame, fg_color='white')
         nav_frame.pack(side='bottom', fill='x', pady=AppTheme.SPACING['lg'])
         
         # Bouton Précédent ou Dashboard
@@ -1250,7 +1251,7 @@ Type de cheminement: {"Fermé" if self.imported_data.initial_point == self.impor
             results_title.pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
             
             # Frame pour les métriques
-            metrics_frame = ctk.CTkFrame(self.results_section, fg_color='transparent')
+            metrics_frame = ctk.CTkFrame(self.results_section, fg_color='white')
             metrics_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
             
             # Métriques principales
@@ -1474,7 +1475,7 @@ Type de cheminement: {"Fermé" if self.imported_data.initial_point == self.impor
             results_title.pack(anchor='w', padx=AppTheme.SPACING['md'], pady=(AppTheme.SPACING['md'], AppTheme.SPACING['sm']))
             
             # Métriques de compensation
-            metrics_frame = ctk.CTkFrame(self.comp_results_section, fg_color='transparent')
+            metrics_frame = ctk.CTkFrame(self.comp_results_section, fg_color='white')
             metrics_frame.pack(fill='x', padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['sm'])
             
             # Extraction des résultats

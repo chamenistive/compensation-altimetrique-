@@ -370,7 +370,7 @@ class ModernDashboard(ThemedFrame):
             self.main_container,
             text="Voir tous",
             command=self.view_all_projects,
-            variant='ghost',
+            variant='white',
             size='small'
         )
         view_all_button.grid(row=3, column=1, sticky='e', pady=(0, 15))
@@ -586,7 +586,7 @@ class ModernDashboard(ThemedFrame):
             button_frame,
             text=f"{icon} {text}",
             command=command,
-            variant='ghost',
+            variant='white',
             width=200
         )
         button.pack(fill='x')
