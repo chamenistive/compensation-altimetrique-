@@ -54,6 +54,13 @@ class AppTheme:
         'border_dark': '#CBD5E1',      # Bordures accentuées
         'divider': '#E5E7EB',          # Séparateurs
         
+        # Styles d'onglets spécifiques
+        'tab_active_bg': '#FFFFFF',    # Fond onglet actif
+        'tab_inactive_bg': '#F8FAFC',  # Fond onglet inactif
+        'tab_disabled_bg': '#F1F5F9',  # Fond onglet désactivé
+        'tab_border': '#E2E8F0',       # Bordure onglet
+        'tab_active_border': '#2E86AB', # Bordure onglet actif
+        
         # Effets glassmorphism
         'glass_bg': '#FFFFFF99',       # Fond verre (transparence)
         'glass_border': '#FFFFFF33',   # Bordure verre

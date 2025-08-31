@@ -6,7 +6,6 @@ Basés sur CustomTkinter avec le thème personnalisé.
 import customtkinter as ctk
 from typing import Optional, Callable, List, Any
 from ..utils.theme import AppTheme
-
 class ThemedButton(ctk.CTkButton):
     """Bouton avec thème géodésique moderne."""
     
@@ -104,6 +103,165 @@ class ThemedFrame(ctk.CTkFrame):
         
         config = {**defaults, **kwargs}
         super().__init__(parent, **config)
+
+class TabButton(ctk.CTkButton):
+    """Bouton d'onglet avec styles actif/inactif."""
+    
+    def __init__(self, parent, text: str, tab_index: int, callback: Optional[Callable] = None, **kwargs):
+        self.tab_index = tab_index
+        self.callback = callback
+        self.is_active = False
+        self.is_disabled = False
+        
+        # Configuration initiale (inactif)
+        defaults = {
+            'height': 40,
+            'corner_radius': 8,  # CustomTkinter ne supporte que des radius uniformes
+            'font': AppTheme.FONTS['button'],
+            'fg_color': AppTheme.COLORS['surface'],
+            'hover_color': AppTheme.COLORS['surface_elevated'],
+            'text_color': AppTheme.COLORS['text_secondary'],
+            'border_width': 1,
+            'border_color': AppTheme.COLORS['border'],
+            'cursor': 'hand2',
+        }
+        
+        config = {**defaults, **kwargs}
+        super().__init__(parent, text=text, command=self._on_click, **config)
+    
+    def _on_click(self):
+        """Gestion du clic sur l'onglet."""
+        if not self.is_disabled and self.callback:
+            self.callback(self.tab_index)
+    
+    def set_active(self, active: bool):
+        """Active ou désactive visuellement l'onglet."""
+        self.is_active = active
+        if active:
+            self.configure(
+                fg_color=AppTheme.COLORS['card_bg'],
+                text_color=AppTheme.COLORS['primary'],
+                border_color=AppTheme.COLORS['primary']
+            )
+        else:
+            self.configure(
+                fg_color=AppTheme.COLORS['surface'],
+                text_color=AppTheme.COLORS['text_secondary'],
+                border_color=AppTheme.COLORS['border']
+            )
+    
+    def set_disabled(self, disabled: bool):
+        """Active ou désactive l'onglet."""
+        self.is_disabled = disabled
+        if disabled:
+            self.configure(
+                fg_color=AppTheme.COLORS['background'],
+                text_color=AppTheme.COLORS['text_muted'],
+                cursor='arrow'
+            )
+        else:
+            self.configure(cursor='hand2')
+            self.set_active(self.is_active)
+
+class TabFrame(ThemedFrame):
+    """Container pour système d'onglets avec contenu."""
+    
+    def __init__(self, parent, tabs: List[str], **kwargs):
+        super().__init__(parent, **kwargs)
+        
+        self.tabs = tabs
+        self.current_tab = 0
+        self.tab_buttons = []
+        self.tab_contents = []
+        self.tab_callbacks = []
+        
+        # Configuration du layout
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        
+        self._create_tab_bar()
+        self._create_tab_contents()
+    
+    def _create_tab_bar(self):
+        """Crée la barre d'onglets."""
+        self.tab_bar = ThemedFrame(self)
+        self.tab_bar.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+        self.tab_bar.configure(fg_color=AppTheme.COLORS['background'])
+        
+        # Créer les boutons d'onglets
+        for i, tab_name in enumerate(self.tabs):
+            tab_btn = TabButton(
+                self.tab_bar, 
+                text=tab_name,
+                tab_index=i,
+                callback=self._switch_tab
+            )
+            tab_btn.grid(row=0, column=i, padx=(0, 2), pady=5, sticky="ew")
+            self.tab_buttons.append(tab_btn)
+        
+        # Activer le premier onglet
+        if self.tab_buttons:
+            self.tab_buttons[0].set_active(True)
+    
+    def _create_tab_contents(self):
+        """Crée les conteneurs de contenu des onglets."""
+        self.content_frame = ThemedFrame(self)
+        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
+        self.content_frame.grid_rowconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Créer un frame de contenu pour chaque onglet
+        for i in range(len(self.tabs)):
+            content = ThemedFrame(self.content_frame)
+            content.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+            content.grid_rowconfigure(0, weight=1)
+            content.grid_columnconfigure(0, weight=1)
+            self.tab_contents.append(content)
+            
+            # Masquer tous sauf le premier
+            if i > 0:
+                content.grid_remove()
+    
+    def _switch_tab(self, tab_index: int):
+        """Change l'onglet actif."""
+        if tab_index == self.current_tab:
+            return
+            
+        # Désactiver l'ancien onglet
+        if 0 <= self.current_tab < len(self.tab_buttons):
+            self.tab_buttons[self.current_tab].set_active(False)
+            self.tab_contents[self.current_tab].grid_remove()
+        
+        # Activer le nouvel onglet
+        self.current_tab = tab_index
+        self.tab_buttons[tab_index].set_active(True)
+        self.tab_contents[tab_index].grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        
+        # Appeler le callback si défini
+        if tab_index < len(self.tab_callbacks) and self.tab_callbacks[tab_index]:
+            self.tab_callbacks[tab_index]()
+    
+    def get_tab_content(self, tab_index: int) -> 'ThemedFrame':
+        """Retourne le frame de contenu d'un onglet."""
+        if 0 <= tab_index < len(self.tab_contents):
+            return self.tab_contents[tab_index]
+        return None
+    
+    def set_tab_callback(self, tab_index: int, callback: Callable):
+        """Définit un callback pour un onglet."""
+        while len(self.tab_callbacks) <= tab_index:
+            self.tab_callbacks.append(None)
+        self.tab_callbacks[tab_index] = callback
+    
+    def set_tab_disabled(self, tab_index: int, disabled: bool):
+        """Active ou désactive un onglet."""
+        if 0 <= tab_index < len(self.tab_buttons):
+            self.tab_buttons[tab_index].set_disabled(disabled)
+    
+    def switch_to_tab(self, tab_index: int):
+        """Force le passage à un onglet (méthode publique)."""
+        if 0 <= tab_index < len(self.tabs):
+            self._switch_tab(tab_index)
 
 class ThemedProgressBar(ctk.CTkProgressBar):
     """Barre de progression moderne avec animation."""
