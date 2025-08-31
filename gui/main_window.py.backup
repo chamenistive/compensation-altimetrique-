@@ -141,11 +141,11 @@ class MainApplication(ctk.CTk):
         
         # Désactiver les onglets suivants au début
         self.tab_frame.set_tab_disabled(2, True)  # Calculs
-        self.tab_frame.set_tab_disabled(3, True)  # Résultats  
+        self.tab_frame.set_tab_disabled(3, True)  # Résultats
         self.tab_frame.set_tab_disabled(4, True)  # Export
     
     def create_header(self):
-        """Crée l'en-tête moderne avec titre et indicateur d'étapes."""
+        """Crée l'en-tête simplifié pour interface à onglets."""
         
         # Frame d'en-tête avec style moderne
         header_frame = ThemedFrame(self, elevated=True)
@@ -156,61 +156,25 @@ class MainApplication(ctk.CTk):
         header_content = ctk.CTkFrame(header_frame, fg_color='white')
         header_content.pack(fill='both', expand=True, 
                            padx=AppTheme.SPACING['xl'], 
-                           pady=AppTheme.SPACING['xl'])
+                           pady=AppTheme.SPACING['md'])
         
-        # Titre principal moderne
+        # Titre principal moderne (plus compact)
         title_label = ThemedLabel(
             header_content,
-            text="🧮 Système de Compensation Altimétrique",
-            style='display',
+            text="🧮 Compensation Altimétrique - Précision 2mm",
+            style='title',
             text_color=AppTheme.COLORS['primary']
         )
-        title_label.pack(pady=(0, AppTheme.SPACING['sm']))
+        title_label.pack()
         
-        # Sous-titre avec badges de précision
-        subtitle_frame = ctk.CTkFrame(header_content, fg_color='white')
-        subtitle_frame.pack(pady=(0, AppTheme.SPACING['xl']))
-        
-        subtitle_label = ThemedLabel(
-            subtitle_frame,
-            text="Assistant professionnel de compensation par moindres carrés",
-            style='body',
+        # Informations de version/statut
+        info_label = ThemedLabel(
+            header_content,
+            text="DickPy C# - Version 2.0",
+            style='small',
             text_color=AppTheme.COLORS['text_secondary']
         )
-        subtitle_label.pack()
-        
-        # Badge de précision
-        precision_badge = ctk.CTkFrame(
-            subtitle_frame,
-            fg_color=AppTheme.COLORS['accent'],
-            corner_radius=AppTheme.SIZES['border_radius_large']
-        )
-        precision_badge.pack(pady=(AppTheme.SPACING['sm'], 0))
-        
-        badge_label = ThemedLabel(
-            precision_badge,
-            text="✨ Précision garantie : 2mm ✨",
-            style='body_medium',
-            text_color=AppTheme.COLORS['text_on_primary']
-        )
-        badge_label.pack(padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
-        
-        # Indicateur d'étapes moderne (caché sur le dashboard)
-        steps = [
-            "Import\\nFichiers", 
-            "Configuration\\nParamètres", 
-            "Calculs\\nPréliminaires", 
-            "Compensation\\nLSQ", 
-            "Résultats\\n& Export"
-        ]
-        
-        self.step_indicator = StepIndicator(
-            header_content, 
-            steps=steps, 
-            current_step=max(0, self.current_step)  # Éviter -1
-        )
-        if self.current_step >= 0:  # Masquer sur le dashboard
-            self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
+        info_label.pack()
     
     def setup_tabs(self):
         """Configure le contenu des onglets."""
@@ -218,7 +182,7 @@ class MainApplication(ctk.CTk):
         # Onglet 1: Import des Données
         self.create_import_tab()
         
-        # Onglet 2: Paramètres  
+        # Onglet 2: Paramètres
         self.create_parameters_tab()
         
         # Onglet 3: Calculs
@@ -286,7 +250,7 @@ class MainApplication(ctk.CTk):
             text_color=AppTheme.COLORS['text']
         ).pack(anchor='w')
         
-        # Zone d'aperçu
+        # Zone d'aperçu (tableau ou texte)
         self.preview_frame = ThemedFrame(preview_section)
         self.preview_frame.pack(fill='both', expand=True, padx=15, pady=15)
         
@@ -297,28 +261,6 @@ class MainApplication(ctk.CTk):
         )
         self.preview_text.pack(fill='both', expand=True)
         self.preview_text.insert('1.0', "Aucune donnée à afficher")
-        
-        # Section de validation
-        validation_section = ThemedFrame(tab_content, elevated=True)
-        validation_section.pack(fill='x', padx=20, pady=(0, 10))
-        
-        validation_header = ThemedFrame(validation_section)
-        validation_header.pack(fill='x', padx=15, pady=(15, 0))
-        validation_header.configure(fg_color=AppTheme.COLORS['background'])
-        
-        ThemedLabel(
-            validation_header,
-            text="✅ Validation des données",
-            style='heading'
-        ).pack(anchor='w')
-        
-        self.validation_text = ctk.CTkTextbox(
-            validation_section,
-            height=100,
-            font=AppTheme.FONTS['monospace']
-        )
-        self.validation_text.pack(fill='x', padx=15, pady=(0, 15))
-        self.validation_text.insert('1.0', "En attente de données...")
     
     def create_parameters_tab(self):
         """Crée l'onglet des paramètres."""
@@ -360,247 +302,78 @@ class MainApplication(ctk.CTk):
         self.altitude_entry = ThemedEntry(alt_frame, placeholder="518.678976")
         self.altitude_entry.pack(side='right')
         
-        # Type de réseau
-        network_frame = ctk.CTkFrame(params_frame, fg_color='transparent')
-        network_frame.pack(fill='x', pady=5)
+        # Section Précision
+        precision_section = ThemedFrame(tab_content, elevated=True)
+        precision_section.pack(fill='x', padx=20, pady=(0, 10))
         
-        ThemedLabel(network_frame, text="Type de réseau :", style='body').pack(side='left')
-        self.network_var = ctk.StringVar(value="Traversée ouverte")
-        network_dropdown = ctk.CTkComboBox(network_frame, values=["Traversée ouverte", "Boucle fermée"], variable=self.network_var)
-        network_dropdown.pack(side='right')
-        
-        # Section Paramètres Géodésiques
-        geo_section = ThemedFrame(tab_content, elevated=True)
-        geo_section.pack(fill='x', padx=20, pady=(0, 10))
-        
-        geo_header = ThemedFrame(geo_section)
-        geo_header.pack(fill='x', padx=15, pady=(15, 10))
-        geo_header.configure(fg_color=AppTheme.COLORS['background'])
+        precision_header = ThemedFrame(precision_section)
+        precision_header.pack(fill='x', padx=15, pady=(15, 10))
+        precision_header.configure(fg_color=AppTheme.COLORS['info_light'])
         
         ThemedLabel(
-            geo_header,
-            text="📊 Paramètres Géodésiques - Théorie σ = a² + b²d",
-            style='heading'
-        ).pack(anchor='w')
-        
-        geo_content = ThemedFrame(geo_section)
-        geo_content.pack(fill='x', padx=15, pady=(0, 15))
-        
-        # Erreur instrumentale
-        error_frame1 = ctk.CTkFrame(geo_content, fg_color='transparent')
-        error_frame1.pack(fill='x', pady=5)
-        
-        ThemedLabel(error_frame1, text="Erreur instrumentale (a) :", style='body').pack(side='left')
-        self.error_a_entry = ThemedEntry(error_frame1, placeholder="0.2")
-        self.error_a_entry.pack(side='right')
-        ThemedLabel(error_frame1, text="mm", style='body').pack(side='right', padx=(5, 20))
-        
-        # Erreur kilométrique
-        error_frame2 = ctk.CTkFrame(geo_content, fg_color='transparent')
-        error_frame2.pack(fill='x', pady=5)
-        
-        ThemedLabel(error_frame2, text="Erreur kilométrique (b) :", style='body').pack(side='left')
-        self.error_b_entry = ThemedEntry(error_frame2, placeholder="0.3")
-        self.error_b_entry.pack(side='right')
-        ThemedLabel(error_frame2, text="mm/km", style='body').pack(side='right', padx=(5, 20))
-        
-        # Section Corrections Atmosphériques
-        atm_section = ThemedFrame(tab_content, elevated=True)
-        atm_section.pack(fill='x', padx=20, pady=(0, 10))
-        
-        atm_header = ThemedFrame(atm_section)
-        atm_header.pack(fill='x', padx=15, pady=(15, 10))
-        atm_header.configure(fg_color=AppTheme.COLORS['background'])
-        
-        # Toggle pour corrections
-        corrections_frame = ctk.CTkFrame(atm_header, fg_color='transparent')
-        corrections_frame.pack(fill='x')
-        
-        ThemedLabel(corrections_frame, text="☁ Corrections Atmosphériques", style='heading').pack(side='left')
-        
-        self.corrections_enabled = ctk.BooleanVar(value=True)
-        corrections_switch = ctk.CTkSwitch(corrections_frame, variable=self.corrections_enabled, text="Activées")
-        corrections_switch.pack(side='right')
-        
-        # Paramètres atmosphériques
-        atm_content = ThemedFrame(atm_section)
-        atm_content.pack(fill='x', padx=15, pady=(0, 15))
-        
-        # Région prédéfinie
-        region_frame = ctk.CTkFrame(atm_content, fg_color='transparent')
-        region_frame.pack(fill='x', pady=5)
-        
-        ThemedLabel(region_frame, text="Région prédéfinie :", style='body').pack(side='left')
-        self.region_var = ctk.StringVar(value="Tropical (28°C, 1010hPa, 75%)")
-        region_dropdown = ctk.CTkComboBox(
-            region_frame, 
-            values=[
-                "Tropical (28°C, 1010hPa, 75%)",
-                "Tempéré (15°C, 1013hPa, 60%)",
-                "Continental (20°C, 1015hPa, 50%)"
-            ], 
-            variable=self.region_var,
-            width=300
-        )
-        region_dropdown.pack(side='right')
-        
-        # Paramètres détaillés sur une ligne
-        params_row = ctk.CTkFrame(atm_content, fg_color='transparent')
-        params_row.pack(fill='x', pady=10)
-        
-        # Température
-        temp_frame = ctk.CTkFrame(params_row, fg_color='transparent')
-        temp_frame.pack(side='left', padx=(0, 20))
-        
-        ThemedLabel(temp_frame, text="Température", style='body').pack()
-        self.temp_entry = ThemedEntry(temp_frame, placeholder="28", width=80)
-        self.temp_entry.pack()
-        ThemedLabel(temp_frame, text="°C", style='small').pack()
-        
-        # Pression
-        pressure_frame = ctk.CTkFrame(params_row, fg_color='transparent')
-        pressure_frame.pack(side='left', padx=(0, 20))
-        
-        ThemedLabel(pressure_frame, text="Pression", style='body').pack()
-        self.pressure_entry = ThemedEntry(pressure_frame, placeholder="1010", width=80)
-        self.pressure_entry.pack()
-        ThemedLabel(pressure_frame, text="hPa", style='small').pack()
-        
-        # Humidité
-        humidity_frame = ctk.CTkFrame(params_row, fg_color='transparent')
-        humidity_frame.pack(side='left')
-        
-        ThemedLabel(humidity_frame, text="Humidité", style='body').pack()
-        self.humidity_entry = ThemedEntry(humidity_frame, placeholder="75", width=80)
-        self.humidity_entry.pack()
-        ThemedLabel(humidity_frame, text="%", style='small').pack()
-        
-        # Section Résumé de la Configuration
-        summary_section = ThemedFrame(tab_content, elevated=True)
-        summary_section.pack(fill='x', padx=20, pady=(0, 10))
-        
-        summary_header = ThemedFrame(summary_section)
-        summary_header.pack(fill='x', padx=15, pady=(15, 10))
-        summary_header.configure(fg_color=AppTheme.COLORS['info_light'])
-        
-        ThemedLabel(
-            summary_header,
-            text="📋 Résumé de la Configuration",
+            precision_header,
+            text="🎯 Paramètres de Précision",
             style='heading'
         ).pack()
         
-        summary_content = ThemedFrame(summary_section)
-        summary_content.pack(fill='x', padx=15, pady=(0, 15))
+        precision_content = ThemedFrame(precision_section)
+        precision_content.pack(fill='x', padx=15, pady=(0, 15))
+        precision_content.configure(fg_color=AppTheme.COLORS['info_light'])
         
-        # Colonnes du résumé
-        summary_row1 = ctk.CTkFrame(summary_content, fg_color='transparent')
-        summary_row1.pack(fill='x', pady=5)
+        ThemedLabel(
+            precision_content,
+            text="2 mm",
+            style='display',
+            text_color=AppTheme.COLORS['primary']
+        ).pack()
         
-        # Colonne gauche
-        left_col = ctk.CTkFrame(summary_row1, fg_color='transparent')
-        left_col.pack(side='left', fill='x', expand=True)
-        
-        ThemedLabel(left_col, text="Points à traiter : 79", style='body').pack(anchor='w')
-        ThemedLabel(left_col, text="Point de référence : AM1", style='body').pack(anchor='w')
-        ThemedLabel(left_col, text="Altitude référence : 518.679 m", style='body').pack(anchor='w')
-        ThemedLabel(left_col, text="Type de réseau : ouvert", style='body').pack(anchor='w')
-        
-        # Colonne droite
-        right_col = ctk.CTkFrame(summary_row1, fg_color='transparent')
-        right_col.pack(side='right', fill='x', expand=True)
-        
-        ThemedLabel(right_col, text="Précision cible : 2 mm", style='body_medium', text_color=AppTheme.COLORS['primary']).pack(anchor='w')
-        ThemedLabel(right_col, text="Paramètres géodésiques : a=0.2 mm, b=0.3 mm/km", style='body').pack(anchor='w')
-        ThemedLabel(right_col, text="Corrections atmosphériques : Activées", style='body', text_color=AppTheme.COLORS['success']).pack(anchor='w')
-        ThemedLabel(right_col, text="Niveau de confiance : 95%", style='body').pack(anchor='w')
-        
-        # Bouton "Lancer les Calculs"
-        launch_frame = ThemedFrame(summary_section)
-        launch_frame.pack(fill='x', padx=15, pady=(10, 15))
-        
-        self.launch_calc_button = ThemedButton(
-            launch_frame,
-            text="→ Lancer les Calculs",
-            variant='success',
-            size='large',
-            command=lambda: self.tab_frame.switch_to_tab(2)  # Aller à l'onglet Calculs
-        )
-        self.launch_calc_button.pack()
+        ThemedLabel(
+            precision_content,
+            text="Précision cible",
+            style='body',
+            text_color=AppTheme.COLORS['text_secondary']
+        ).pack()
     
     def create_calculations_tab(self):
         """Crée l'onglet des calculs."""
         tab_content = self.tab_frame.get_tab_content(2)
         
-        # Centrer tout le contenu
-        main_container = ThemedFrame(tab_content)
-        main_container.pack(expand=True, fill='both')
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=1)
-        
-        center_frame = ThemedFrame(main_container)
-        center_frame.grid(row=0, column=0)
-        
-        # Section titre et bouton
-        calc_section = ThemedFrame(center_frame, elevated=True)
-        calc_section.pack(padx=40, pady=20)
+        # Section de lancement
+        calc_section = ThemedFrame(tab_content, elevated=True)
+        calc_section.pack(fill='x', padx=20, pady=10)
         
         # En-tête
         calc_header = ThemedFrame(calc_section)
-        calc_header.pack(fill='x', padx=20, pady=(20, 10))
-        calc_header.configure(fg_color=AppTheme.COLORS['warning_light'])
+        calc_header.pack(fill='x', padx=15, pady=(15, 10))
+        calc_header.configure(fg_color=AppTheme.COLORS['background'])
         
         ThemedLabel(
             calc_header,
-            text="🧮 Calculs de Compensation",
-            style='title',
-            text_color=AppTheme.COLORS['primary']
-        ).pack()
+            text="🚀 Lancement des calculs",
+            style='heading'
+        ).pack(anchor='w')
         
-        # Icône et état
-        status_frame = ThemedFrame(calc_section)
-        status_frame.pack(fill='x', padx=20, pady=10)
+        # Bouton de calcul centré
+        calc_button_frame = ThemedFrame(calc_section)
+        calc_button_frame.pack(fill='x', padx=15, pady=15)
         
-        # Icône play centrée
-        icon_label = ThemedLabel(
-            status_frame,
-            text="▶️",
-            style='display',
-            text_color=AppTheme.COLORS['success']
-        )
-        icon_label.pack()
-        
-        ThemedLabel(
-            status_frame,
-            text="Prêt pour les calculs",
-            style='heading',
-            text_color=AppTheme.COLORS['text']
-        ).pack(pady=10)
-        
-        ThemedLabel(
-            status_frame,
-            text="79 points à traiter | Précision cible : 2 mm",
-            style='body',
-            text_color=AppTheme.COLORS['text_secondary']
-        ).pack()
-        
-        # Bouton de lancement
         self.calc_button = ThemedButton(
-            calc_section,
+            calc_button_frame,
             text="⚡ LANCER LES CALCULS",
             variant='success',
             size='large',
             command=self.run_calculations
         )
-        self.calc_button.pack(pady=30)
+        self.calc_button.pack(pady=20)
         
         # Barre de progression
-        self.progress_bar = ThemedProgressBar(calc_section)
-        self.progress_bar.pack(fill='x', padx=20, pady=10)
+        self.progress_bar = ThemedProgressBar(calc_button_frame)
+        self.progress_bar.pack(fill='x', pady=10)
         self.progress_bar.set(0)
         
-        # Section d'état des calculs (en bas)
-        status_section = ThemedFrame(center_frame, elevated=True)
-        status_section.pack(fill='x', padx=40, pady=(0, 20))
+        # État des calculs
+        status_section = ThemedFrame(tab_content, elevated=True) 
+        status_section.pack(fill='both', expand=True, padx=20, pady=(0, 10))
         
         status_header = ThemedFrame(status_section)
         status_header.pack(fill='x', padx=15, pady=(15, 10))
@@ -614,14 +387,14 @@ class MainApplication(ctk.CTk):
         
         self.calc_status_text = ctk.CTkTextbox(
             status_section,
-            height=150,
+            height=200,
             font=AppTheme.FONTS['monospace']
         )
-        self.calc_status_text.pack(fill='x', padx=15, pady=(0, 15))
+        self.calc_status_text.pack(fill='both', expand=True, padx=15, pady=(0, 15))
         self.calc_status_text.insert('1.0', "Prêt pour les calculs...")
     
     def create_results_tab(self):
-        """Crée l'onglet des résultats.""" 
+        """Crée l'onglet des résultats."""
         tab_content = self.tab_frame.get_tab_content(3)
         
         # Section résultats détaillés
@@ -641,142 +414,69 @@ class MainApplication(ctk.CTk):
         # Tableau des résultats
         self.results_text = ctk.CTkTextbox(
             results_section,
-            height=400,
+            height=300,
             font=AppTheme.FONTS['monospace']
         )
         self.results_text.pack(fill='both', expand=True, padx=15, pady=(0, 15))
         self.results_text.insert('1.0', "Aucun résultat disponible")
-        
-        # Section de fermeture
-        closure_section = ThemedFrame(tab_content, elevated=True)
-        closure_section.pack(fill='x', padx=20, pady=(0, 10))
-        
-        closure_header = ThemedFrame(closure_section)
-        closure_header.pack(fill='x', padx=15, pady=(15, 10))
-        closure_header.configure(fg_color=AppTheme.COLORS['background'])
-        
-        ThemedLabel(
-            closure_header,
-            text="🎯 Calcul de fermeture",
-            style='heading'
-        ).pack(anchor='w')
-        
-        self.closure_text = ctk.CTkTextbox(
-            closure_section,
-            height=120,
-            font=AppTheme.FONTS['monospace']
-        )
-        self.closure_text.pack(fill='x', padx=15, pady=(0, 15))
-        self.closure_text.insert('1.0', "En attente des résultats...")
-        
-        # Boutons d'action
-        actions_frame = ThemedFrame(tab_content)
-        actions_frame.pack(fill='x', padx=20, pady=(0, 10))
-        
-        export_button = ThemedButton(
-            actions_frame,
-            text="→ Exporter Résultats",
-            variant='primary',
-            command=lambda: self.tab_frame.switch_to_tab(4)
-        )
-        export_button.pack(side='right', padx=10)
-        
-        save_button = ThemedButton(
-            actions_frame,
-            text="💾 Sauvegarder Projet",
-            variant='secondary',
-            command=self.save_project
-        )
-        save_button.pack(side='right')
     
     def create_export_tab(self):
         """Crée l'onglet d'export."""
         tab_content = self.tab_frame.get_tab_content(4)
         
-        # Centrer tout le contenu
-        main_container = ThemedFrame(tab_content)
-        main_container.pack(expand=True, fill='both')
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=1)
+        # Section d'export
+        export_section = ThemedFrame(tab_content, elevated=True)
+        export_section.pack(fill='x', padx=20, pady=10)
         
-        center_frame = ThemedFrame(main_container)
-        center_frame.grid(row=0, column=0)
+        export_header = ThemedFrame(export_section)
+        export_header.pack(fill='x', padx=15, pady=(15, 10))
+        export_header.configure(fg_color=AppTheme.COLORS['background'])
         
-        # Titre principal
-        title_label = ThemedLabel(
-            center_frame,
+        ThemedLabel(
+            export_header,
             text="📤 Export des Résultats",
-            style='title',
-            text_color=AppTheme.COLORS['primary']
-        )
-        title_label.pack(pady=(20, 40))
+            style='heading'
+        ).pack(anchor='w')
         
-        # Grid des boutons d'export (3 colonnes)
-        buttons_grid = ThemedFrame(center_frame, elevated=True)
-        buttons_grid.pack(padx=40, pady=20)
+        # Boutons d'export
+        export_buttons_frame = ThemedFrame(export_section)
+        export_buttons_frame.pack(fill='x', padx=15, pady=15)
         
-        # Configuration en grille
-        for i in range(3):
-            buttons_grid.grid_columnconfigure(i, weight=1, uniform="export_buttons")
+        # Ligne 1: PDF et CSV
+        row1 = ctk.CTkFrame(export_buttons_frame, fg_color='transparent')
+        row1.pack(fill='x', pady=5)
         
-        # Bouton PDF (Rouge)
-        pdf_card = ThemedFrame(buttons_grid, elevated=True)
-        pdf_card.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        
-        ThemedLabel(pdf_card, text="📄", style='display', text_color='#EF4444').pack(pady=(20, 10))
-        ThemedLabel(pdf_card, text="Rapport PDF", style='heading').pack()
-        ThemedLabel(pdf_card, text="Rapport complet avec graphiques et statistiques", style='body', text_color=AppTheme.COLORS['text_secondary']).pack(pady=10)
-        
-        self.pdf_button = ThemedButton(
-            pdf_card,
+        pdf_btn = ThemedButton(
+            row1,
             text="📄 Télécharger PDF",
-            variant='error',
+            variant='error',  # Rouge comme dans l'image
             command=self.export_pdf
         )
-        self.pdf_button.pack(pady=(10, 20))
+        pdf_btn.pack(side='left', padx=(0, 10))
         
-        # Indicateur fonctionnel
-        ThemedLabel(pdf_card, text="✅ Fonctionnel", style='small', text_color=AppTheme.COLORS['success']).pack()
-        
-        # Bouton CSV (Vert)
-        csv_card = ThemedFrame(buttons_grid, elevated=True)
-        csv_card.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        
-        ThemedLabel(csv_card, text="✖️", style='display', text_color='#10B981').pack(pady=(20, 10))
-        ThemedLabel(csv_card, text="Fichier CSV", style='heading').pack()
-        ThemedLabel(csv_card, text="Données brutes et résultats calculés", style='body', text_color=AppTheme.COLORS['text_secondary']).pack(pady=10)
-        
-        self.csv_button = ThemedButton(
-            csv_card,
+        csv_btn = ThemedButton(
+            row1,
             text="📊 Télécharger CSV",
-            variant='success',
+            variant='success',  # Vert comme dans l'image
             command=self.export_csv
         )
-        self.csv_button.pack(pady=(10, 20))
+        csv_btn.pack(side='left')
         
-        ThemedLabel(csv_card, text="✅ Fonctionnel", style='small', text_color=AppTheme.COLORS['success']).pack()
+        # Ligne 2: JSON
+        row2 = ctk.CTkFrame(export_buttons_frame, fg_color='transparent')
+        row2.pack(fill='x', pady=5)
         
-        # Bouton JSON (Orange)
-        json_card = ThemedFrame(buttons_grid, elevated=True)
-        json_card.grid(row=0, column=2, padx=10, pady=10, sticky="nsew")
-        
-        ThemedLabel(json_card, text="⚙️", style='display', text_color='#F59E0B').pack(pady=(20, 10))
-        ThemedLabel(json_card, text="Format JSON", style='heading').pack()
-        ThemedLabel(json_card, text="Données machine-readable pour APIs", style='body', text_color=AppTheme.COLORS['text_secondary']).pack(pady=10)
-        
-        self.json_button = ThemedButton(
-            json_card,
+        json_btn = ThemedButton(
+            row2,
             text="⚡ Télécharger JSON",
-            variant='warning',
+            variant='warning',  # Orange comme dans l'image
             command=self.export_json
         )
-        self.json_button.pack(pady=(10, 20))
+        json_btn.pack(side='left')
         
-        ThemedLabel(json_card, text="✅ Fonctionnel", style='small', text_color=AppTheme.COLORS['success']).pack()
-        
-        # Section résumé en bas
-        summary_section = ThemedFrame(center_frame, elevated=True)
-        summary_section.pack(fill='x', padx=40, pady=(20, 40))
+        # Résumé du projet
+        summary_section = ThemedFrame(tab_content, elevated=True)
+        summary_section.pack(fill='both', expand=True, padx=20, pady=(0, 10))
         
         summary_header = ThemedFrame(summary_section)
         summary_header.pack(fill='x', padx=15, pady=(15, 10))
@@ -786,72 +486,75 @@ class MainApplication(ctk.CTk):
             summary_header,
             text="📋 Aperçu des Données d'Export",
             style='heading'
-        ).pack()
+        ).pack(anchor='w')
         
-        # Résumé compact
-        summary_text = """Contenu inclus :
-✅ Points compensés avec altitudes finales  ✅ Corrections appliquées
-✅ Écarts-types calculés  ✅ Statistiques globales  
-✅ Paramètres de compensation utilisés
-
-Métadonnées :
-Date : 18/08/2025 16:06  |  Points traités : 79  |  RMS résidus : 0.000 mm
-Temps de calcul : 7.9s  |  Version : DickPy C# 2.0"""
+        # Contenu du résumé
+        summary_content = ThemedFrame(summary_section)
+        summary_content.pack(fill='both', expand=True, padx=15, pady=(0, 15))
         
-        summary_content = ctk.CTkTextbox(
-            summary_section,
-            height=120,
-            font=AppTheme.FONTS['small']
+        self.summary_labels = {}
+        
+        # Contenu inclus
+        content_frame = ctk.CTkFrame(summary_content, fg_color='transparent')
+        content_frame.pack(fill='x', pady=5)
+        
+        ThemedLabel(content_frame, text="Contenu inclus :", style='body_medium').pack(anchor='w')
+        
+        items = [
+            "✅ Points compensés avec altitudes finales",
+            "✅ Corrections appliquées", 
+            "✅ Écarts-types calculés",
+            "✅ Statistiques globales",
+            "✅ Paramètres de compensation utilisés"
+        ]
+        
+        for item in items:
+            ThemedLabel(
+                content_frame,
+                text=item,
+                style='body',
+                text_color=AppTheme.COLORS['success']
+            ).pack(anchor='w', padx=20)
+        
+        # Métadonnées
+        meta_frame = ctk.CTkFrame(summary_content, fg_color='transparent')
+        meta_frame.pack(fill='x', pady=10)
+        
+        ThemedLabel(meta_frame, text="Métadonnées :", style='body_medium').pack(anchor='w')
+        
+        self.summary_labels['date'] = ThemedLabel(meta_frame, text="Date : 18/08/2025 16:06", style='body')
+        self.summary_labels['date'].pack(anchor='w', padx=20)
+        
+        self.summary_labels['points'] = ThemedLabel(meta_frame, text="Points traités : 79", style='body')
+        self.summary_labels['points'].pack(anchor='w', padx=20)
+        
+        self.summary_labels['rms'] = ThemedLabel(meta_frame, text="RMS résidus : 0.000 mm", style='body')
+        self.summary_labels['rms'].pack(anchor='w', padx=20)
+        
+        self.summary_labels['time'] = ThemedLabel(meta_frame, text="Temps de calcul : 7.9s", style='body')
+        self.summary_labels['time'].pack(anchor='w', padx=20)
+        
+        self.summary_labels['version'] = ThemedLabel(meta_frame, text="Version : DickPy C# 2.0", style='body')
+        self.summary_labels['version'].pack(anchor='w', padx=20)
+    
+    # Méthodes de gestion des événements
+    def select_file(self):
+            "Import\\nFichiers", 
+            "Configuration\\nParamètres", 
+            "Calculs\\nPréliminaires", 
+            "Compensation\\nLSQ", 
+            "Résultats\\n& Export"
+        ]
+        
+        self.step_indicator = StepIndicator(
+            header_content, 
+            steps=steps, 
+            current_step=max(0, self.current_step)  # Éviter -1
         )
-        summary_content.pack(fill='x', padx=15, pady=(0, 15))
-        summary_content.insert('1.0', summary_text)
-        summary_content.configure(state='disabled')  # Lecture seule
-        
-        # Bouton "Nouveau Projet"
-        new_project_frame = ThemedFrame(center_frame)
-        new_project_frame.pack(pady=20)
-        
-        new_project_button = ThemedButton(
-            new_project_frame,
-            text="🆕 Nouveau Projet",
-            variant='secondary',
-            size='large',
-            command=self.new_project
-        )
-        new_project_button.pack()
+        if self.current_step >= 0:  # Masquer sur le dashboard
+            self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
     
-    def update_preview_and_validation(self, data):
-        """Met à jour les zones d'aperçu et de validation."""
-        if hasattr(self, 'preview_text'):
-            preview_text = f"Fichier chargé: {len(data.dataframe)} points\\n"
-            preview_text += f"Colonnes AR: {', '.join(data.ar_columns)}\\n"
-            preview_text += f"Colonnes AV: {', '.join(data.av_columns)}\\n"
-            preview_text += f"Point initial: {data.initial_point}"
-            
-            self.preview_text.delete('1.0', 'end')
-            self.preview_text.insert('1.0', preview_text)
-        
-        if hasattr(self, 'validation_text'):
-            validation_text = """✓ Toutes les colonnes requises sont présentes
-✓ Données numériques valides détectées  
-✓ 79 points de mesure importés
-✓ Prêt pour les calculs"""
-            
-            self.validation_text.delete('1.0', 'end')
-            self.validation_text.insert('1.0', validation_text)
-    
-    def activate_next_tab(self, current_tab: int):
-        """Active l'onglet suivant après completion d'une étape."""
-        next_tab = current_tab + 1
-        if next_tab < 5:  # 5 onglets au total
-            self.tab_frame.set_tab_disabled(next_tab, False)
-            
-        # Mettre à jour la barre de statut
-        tab_names = ["Import", "Paramètres", "Calculs", "Résultats", "Export"]
-        if current_tab < len(tab_names):
-            self.status_bar.set_status(f"Onglet {current_tab + 1}/5 - {tab_names[current_tab]}")
-    
-    def old_show_step(self):
+    def show_step(self):
         """Affiche l'étape courante."""
         
         # Vider le frame principal
@@ -1699,9 +1402,6 @@ Tous les résultats sont maintenant disponibles pour analyse et archivage.
                 # Mode démo si les modules backend ne sont pas disponibles
                 filename = Path(filepath).name
                 self.file_drop.set_file_selected(filename)
-                
-                # Mettre à jour l'interface
-                self.file_info_label.configure(text=f"Fichier sélectionné : {filename}")
                 
                 # Créer des données factices pour la démo
                 self.imported_data = type('MockData', (), {
