@@ -158,59 +158,23 @@ class MainApplication(ctk.CTk):
                            padx=AppTheme.SPACING['xl'], 
                            pady=AppTheme.SPACING['xl'])
         
-        # Titre principal moderne
+        # Titre principal comme dans les images
         title_label = ThemedLabel(
             header_content,
-            text="🧮 Système de Compensation Altimétrique",
-            style='display',
+            text="🧮 Dickpy",
+            style='title',
             text_color=AppTheme.COLORS['primary']
         )
-        title_label.pack(pady=(0, AppTheme.SPACING['sm']))
+        title_label.pack()
         
-        # Sous-titre avec badges de précision
-        subtitle_frame = ctk.CTkFrame(header_content, fg_color='white')
-        subtitle_frame.pack(pady=(0, AppTheme.SPACING['xl']))
-        
-        subtitle_label = ThemedLabel(
-            subtitle_frame,
-            text="Assistant professionnel de compensation par moindres carrés",
+        # Sous-titre discret
+        info_label = ThemedLabel(
+            header_content,
+            text="Compensation Altimétrique - Aucune donnée - Version 2.0",
             style='body',
             text_color=AppTheme.COLORS['text_secondary']
         )
-        subtitle_label.pack()
-        
-        # Badge de précision
-        precision_badge = ctk.CTkFrame(
-            subtitle_frame,
-            fg_color=AppTheme.COLORS['accent'],
-            corner_radius=AppTheme.SIZES['border_radius_large']
-        )
-        precision_badge.pack(pady=(AppTheme.SPACING['sm'], 0))
-        
-        badge_label = ThemedLabel(
-            precision_badge,
-            text="✨ Précision garantie : 2mm ✨",
-            style='body_medium',
-            text_color=AppTheme.COLORS['text_on_primary']
-        )
-        badge_label.pack(padx=AppTheme.SPACING['md'], pady=AppTheme.SPACING['xs'])
-        
-        # Indicateur d'étapes moderne (caché sur le dashboard)
-        steps = [
-            "Import\\nFichiers", 
-            "Configuration\\nParamètres", 
-            "Calculs\\nPréliminaires", 
-            "Compensation\\nLSQ", 
-            "Résultats\\n& Export"
-        ]
-        
-        self.step_indicator = StepIndicator(
-            header_content, 
-            steps=steps, 
-            current_step=max(0, self.current_step)  # Éviter -1
-        )
-        if self.current_step >= 0:  # Masquer sur le dashboard
-            self.step_indicator.pack(pady=(AppTheme.SPACING['section'], 0))
+        info_label.pack()
     
     def setup_tabs(self):
         """Configure le contenu des onglets."""
@@ -238,10 +202,11 @@ class MainApplication(ctk.CTk):
         import_section = ThemedFrame(tab_content, elevated=True)
         import_section.pack(fill='x', padx=20, pady=10)
         
-        # En-tête de section
+        # En-tête de section (style cohérent avec les images)
         section_header = ThemedFrame(import_section)
         section_header.pack(fill='x', padx=15, pady=(15, 0))
-        section_header.configure(fg_color=AppTheme.COLORS['background'])
+        header_style = AppTheme.get_section_header_style()
+        section_header.configure(**header_style)
         
         ThemedLabel(
             section_header,
@@ -274,10 +239,10 @@ class MainApplication(ctk.CTk):
         preview_section = ThemedFrame(tab_content, elevated=True)
         preview_section.pack(fill='both', expand=True, padx=20, pady=(0, 10))
         
-        # En-tête d'aperçu
+        # En-tête d'aperçu  
         preview_header = ThemedFrame(preview_section)
         preview_header.pack(fill='x', padx=15, pady=(15, 0))
-        preview_header.configure(fg_color=AppTheme.COLORS['background'])
+        preview_header.configure(**AppTheme.get_section_header_style())
         
         ThemedLabel(
             preview_header,
@@ -304,7 +269,7 @@ class MainApplication(ctk.CTk):
         
         validation_header = ThemedFrame(validation_section)
         validation_header.pack(fill='x', padx=15, pady=(15, 0))
-        validation_header.configure(fg_color=AppTheme.COLORS['background'])
+        validation_header.configure(**AppTheme.get_section_header_style())
         
         ThemedLabel(
             validation_header,

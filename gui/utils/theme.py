@@ -26,8 +26,8 @@ class AppTheme:
         'accent': '#F18F01',           # Orange précision
         'accent_dark': '#CC7700',      # Orange foncé
         
-        # Couleurs de surface modernes
-        'background': '#F8FAFC',       # Gris très clair moderne
+        # Couleurs de surface modernes (comme dans les images)
+        'background': '#ECF0F1',       # Gris plus proche des images
         'surface': '#FFFFFF',          # Blanc pur
         'surface_elevated': '#FDFDFD', # Surface surélevée
         'card_bg': '#FFFFFF',          # Arrière-plan des cartes
@@ -200,6 +200,20 @@ class AppTheme:
                 'border_color': cls.COLORS['success'],
                 'disabled_color': cls.COLORS['text_muted']
             },
+            'error': {
+                'fg_color': cls.COLORS['error'],
+                'hover_color': '#DC2626',  # Rouge plus foncé
+                'text_color': cls.COLORS['text_on_primary'],
+                'border_color': cls.COLORS['error'],
+                'disabled_color': cls.COLORS['text_muted']
+            },
+            'warning': {
+                'fg_color': cls.COLORS['warning'],
+                'hover_color': '#D97706',  # Orange plus foncé
+                'text_color': cls.COLORS['text_on_primary'],
+                'border_color': cls.COLORS['warning'],
+                'disabled_color': cls.COLORS['text_muted']
+            },
             'outline': {
                 'fg_color': 'white',
                 'hover_color': cls.COLORS['background'],
@@ -226,14 +240,23 @@ class AppTheme:
     
     @classmethod
     def get_card_style(cls, elevated: bool = False) -> Dict[str, any]:
-        """Style moderne pour les cartes/panneaux avec effet glassmorphism."""
+        """Style moderne pour les cartes/panneaux avec bordures comme dans les images."""
         base_style = {
             'fg_color': cls.COLORS['surface_elevated'] if elevated else cls.COLORS['card_bg'],
-            'corner_radius': cls.SIZES['card_radius'],
-            'border_width': 1,
-            'border_color': cls.COLORS['border_light']
+            'corner_radius': cls.SIZES['border_radius'],  # Coins moins arrondis
+            'border_width': 2,  # Bordure plus épaisse comme dans les images
+            'border_color': cls.COLORS['border_dark']  # Bordure plus visible
         }
         return base_style
+    
+    @classmethod
+    def get_section_header_style(cls) -> Dict[str, any]:
+        """Style pour les en-têtes de sections comme dans les images."""
+        return {
+            'fg_color': cls.COLORS['background'],
+            'corner_radius': 0,  # Pas de coins arrondis pour les headers
+            'border_width': 0
+        }
     
     @classmethod
     def get_input_style(cls) -> Dict[str, any]:

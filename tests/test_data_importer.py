@@ -23,9 +23,13 @@ import os
 
 # Import des modules à tester
 import sys
-sys.path.append('../src')
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
-from src.data_importer import DataImporter, ImportedData, quick_import, validate_file_format
+from src.data_importer import DataImporter, ImportedData
+from src.utils import quick_import, validate_file_format
 from src.exceptions import FileImportError, DataValidationError
 from src.validators import ValidationResult
 
@@ -412,8 +416,13 @@ class TestErrorHandling(unittest.TestCase):
         # On teste juste la logique de validation
         large_file = Path(self.temp_dir) / 'large.xlsx'
         
-        # Créer un fichier normal d'abord
-        df = pd.DataFrame({'Matricule': ['P1'], 'AR 1': [1.0], 'AV 1': [1.1]})
+        # Créer un fichier normal d'abord avec au moins 2 points
+        df = pd.DataFrame({
+            'Matricule': ['P1', 'P2'], 
+            'AR 1': [1.0, 1.2], 
+            'AV 1': [1.1, 1.3],
+            'DIST 1': [100, 110]
+        })
         df.to_excel(large_file, index=False)
         
         # Le fichier est normal, donc pas d'erreur

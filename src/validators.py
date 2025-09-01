@@ -80,9 +80,9 @@ class DataStructureValidator:
     
     REQUIRED_COLUMNS = ["Matricule"]
     OBSERVATION_PATTERNS = {
-        'AR': re.compile(r'^AR\s*\d*$', re.IGNORECASE),
-        'AV': re.compile(r'^AV\s*\d*$', re.IGNORECASE),
-        'DIST': re.compile(r'^DIST\s*\d*$', re.IGNORECASE)
+        'AR': re.compile(r'^AR[\s_]*\d*$', re.IGNORECASE),
+        'AV': re.compile(r'^AV[\s_]*\d*$', re.IGNORECASE),
+        'DIST': re.compile(r'^DIST[\s_]*\d*$', re.IGNORECASE)
     }
     
     def __init__(self):
@@ -185,8 +185,8 @@ class DataStructureValidator:
                 try:
                     numeric_data = pd.to_numeric(df[col], errors='coerce')
                     null_count = numeric_data.isnull().sum()
-                    if null_count > len(df) * 0.5:  # Plus de 50% de valeurs manquantes
-                        self.result.add_warning(f"Colonne '{col}': {null_count} valeurs non numériques")
+                    if null_count > 0:  # Toute valeur non-numérique génère un avertissement
+                        self.result.add_warning(f"Colonne '{col}': {null_count} valeur(s) non numérique(s) détectée(s)")
                 except Exception as e:
                     self.result.add_error(f"Erreur conversion colonne '{col}': {e}")
     

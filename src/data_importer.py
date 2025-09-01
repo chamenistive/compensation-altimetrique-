@@ -307,8 +307,8 @@ class DataImporter:
     
     def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Nettoyage du DataFrame."""
-        # Nettoyer les noms de colonnes
-        df.columns = df.columns.astype(str).str.strip()
+        # Nettoyer les noms de colonnes - supprimer tous les espaces
+        df.columns = df.columns.astype(str).str.strip().str.replace(' ', '_', regex=False)
         
         # Supprimer les lignes entièrement vides
         df = df.dropna(how='all')
